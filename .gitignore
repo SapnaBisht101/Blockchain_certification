@@ -43,3 +43,6 @@ coverage.json
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+# ---user-data---
+.userdata/
