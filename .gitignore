@@ -1,0 +1,45 @@
+# --- General ---
+node_modules/
+.DS_Store
+.env
+*.log
+
+# --- Backend & Frontend (Node.js) ---
+dist/
+build/
+.npm
+/.pnp
+.pnp.js
+.vercel
+.next/
+
+# --- Blockchain (Hardhat/Solidity) ---
+# Ignore compiled artifacts and cache
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Ignore local blockchain data
+scripts/db/
+deployments/
+
+# --- Sensitive Info (CRITICAL) ---
+# Never upload your private keys or mnemonic
+.env
+backend/.env
+frontend/.env
+bchain/.env
+mnemonic.txt
+*privatekey.txt
+
+# --- Coverage/Testing ---
+coverage/
+coverage.json
+.nyc_output
+
+# --- IDE/Editors ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
