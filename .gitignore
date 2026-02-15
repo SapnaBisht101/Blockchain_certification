@@ -45,4 +45,5 @@ coverage.json
 *.sublime-workspace
 
 # ---user-data---
-.userdata/
+.userData/
+.roughcopy.txt
