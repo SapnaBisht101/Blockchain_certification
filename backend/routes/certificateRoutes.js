@@ -25,85 +25,6 @@ const generateCertificateHash = (data) => {
   return crypto.createHash("sha256").update(hashString).digest("hex");
 };
 
-router.post("/generate-qr_Disable", async (req, res) => {
-  console.log(req.body);
-
-  try {
-    const {
-      studentName,
-      studentEmail,
-      courseName,
-      completionDate,
-      issuerName,
-      institutionName,
-      certificateTitle,
-      certificateDescription,
-    } = req.body;
-
-    //  Find Student by Email
-    const student = await Student.findOne({ email: studentEmail });
-    if (!student) {
-      return res.status(400).json({ success: false, message: "Student not found" });
-    }
-
-    //  Find Issuer by Name
-    const issuer = await Issuer.findOne({ issuerName });
-    if (!issuer) {
-      return res.status(400).json({ success: false, message: "Issuer not found" });
-    }
-
-    //  Generate IDs
-    const qrCodeId = uuidv4();
-
-    //  Prepare Payload for QR Code
-    const payload = {
-      qrCodeId,
-      studentName: student.name,
-      studentEmail: student.email,
-      courseName,
-      issuerName: issuer.issuerName,
-      institutionName: institutionName || issuer.institutionName,
-      issuedOn: new Date(),
-    };
-
-    //  Generate QR Code Image
-    const qrCodeUrl = await QRCode.toDataURL(JSON.stringify(payload));
-
-    //  Create Certificate Document
-    const newCert = new Certificate({
-      qrCodeId,
-      studentId: student._id,
-      recipientName: student.name,
-      issuerId: issuer._id,
-      issuerName: issuer.issuerName,
-      institutionName: institutionName || issuer.institutionName,
-      certificateTitle,
-      courseName,
-      certificateDescription,
-      completionDate: completionDate ? new Date(completionDate) : new Date(),
-    });
-
-    //  Save to DB
-    await newCert.save();
-    
-    //  Respond
-    return res.json({
-      success: true,
-      message: "Certificate generated successfully!",
-      certificate: newCert,
-      qrCodeUrl,
-
-   
-    });
-
-  } catch (error) {
-    console.error("❌ Error generating certificate:", error);
-    return res.status(500).json({ success: false, message: "Server Error", error: error.message });
-  }
-});
-
-
-
 // -------------------- MULTER UPLOAD CONFIG --------------------
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -115,12 +36,7 @@ const upload = multer({
   },
 });
 
-
 // -------------------- UTILITY: Compare Data Function --------------------
-/**
- * Compares data from the QR code (clientData) with the authoritative data (serverCert).
- * @returns {object} { status: 'Match'|'Mismatch'|'Revoked', mismatchedFields: string[] }
- */
 const compareData = (clientData, serverCert) => {
     const mismatchedFields = [];
 
@@ -154,75 +70,6 @@ const compareData = (clientData, serverCert) => {
     return { status, mismatchedFields };
 };
 
-
-// -------------------- NEW: VERIFY BY QR ID & DATA (ALL METHODS LEAD HERE) --------------------
-router.post("/verify-data_Disable", async (req, res) => {
-    try {
-        const { qrCodeId, clientData } = req.body;
-        console.log("hey",qrCodeId,clientData,"hey");
-        
-        if (!qrCodeId?.trim()) {
-            return res.status(400).json({
-                valid: false,
-                status: "Invalid_ID",
-                message: "QR Code ID is required",
-            });
-        }
-
-        const cert = await Certificate.findOne({ qrCodeId: qrCodeId.trim() });
-
-        if (!cert) {
-            return res.status(404).json({
-                valid: false,
-                status: "Invalid_ID",
-                message: "Certificate not found. It may be fake or invalid.",
-            });
-        }
-
-        //  Perform the comparison
-        const { status, mismatchedFields } = compareData(clientData, cert);
-        
-        const responseData = {
-            qrCodeId: cert.qrCodeId,
-            recipientName: cert.recipientName,
-            certificateTitle: cert.certificateTitle,
-            courseName: cert.courseName,
-            issuerName: cert.issuerName,
-            institutionName: cert.institutionName,
-            certificateDescription: cert.certificateDescription,
-            completionDate: cert.completionDate,
-            issuedAt: cert.issuedAt,
-        };
-
-        if (status === 'Revoked') {
-            return res.status(410).json({ // 410 Gone for revoked
-                valid: true, // Record is valid, but status is revoked
-                status: 'Revoked',
-                message: "This certificate has been officially revoked.",
-                data: responseData, // Still send the data for context
-            });
-        }
-
-
-        return res.json({
-            valid: true,
-            status: status, // 'Match' or 'Mismatch'
-            message: "Verification complete.",
-            data: responseData,
-            details: { mismatchedFields },
-        });
-
-    } catch (error) {
-        console.error("Verification Error:", error);
-        return res.status(500).json({
-            valid: false,
-            status: "Error",
-            message: "Server error during verification.",
-        });
-    }
-});
-
-
 // -------------------- VERIFY BY IMAGE (UPLOAD QR) - MODIFIED --------------------
 router.post("/extract-qr", upload.single("qrImage"), async (req, res) => {
   console.log("Extract_qr API is called -------------------------");
@@ -251,8 +98,6 @@ router.post("/extract-qr", upload.single("qrImage"), async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to process image" });
   }
 });
-
-
 
 // -------------------- REVOKE CERTIFICATE --------------------
 router.patch("/revoke/:qrCodeId", async (req, res) => {

@@ -29,16 +29,16 @@ mongoose
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // ------------------- ROUTES -------------------
-app.use("",(req,res,next)=>{console.log("-------------------------------------------------");next();}       );
+app.use("",(req,res,next)=>{console.log("----------------------------------");next();}       );
 
-app.use("/register", registerRoutes);
-app.use("/login", loginRoutes);
-app.use("/", fetchRoutes);
+app.use("/register", registerRoutes)
+app.use("/login", loginRoutes)
+app.use("/", fetchRoutes)
 app.use("/certificates",CertificateRoutes)
 app.use("/student",StudentRoutes)
 app.use("/issuer",issuerRoutes)
-app.use("/auth", verifyRoute);
-app.use("/admin",adminRoutes);
+app.use("/auth", verifyRoute)
+app.use("/admin",adminRoutes)
 app.use("/changepassword",changePasswordRoute)
 
 // ------------------- START SERVER -------------------
