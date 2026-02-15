@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Tempelete from "../../components/Tempelate"; // adjust path
-import handleDownloadPDF from "../../components/Downloadpdf.js"; // adjust path
+import Tempelete from "./Tempelate.jsx"; // adjust path
+import handleDownloadPDF from "./Downloadpdf.js"; // adjust path
 
 const CertificateDetails = () => {
+  console.log("i am certi-details page ");
+  
   const location = useLocation();
   const navigate = useNavigate();
 
-  const certificate = location.state?.cert;
+  const certificate = location.state?.cert;  
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -47,7 +49,7 @@ const CertificateDetails = () => {
     issuerName: certificate.issuerName,
     issuerTitle: certificate.issuerTitle,
     institutionName: certificate.institutionName,
-    logoImage: certificate.institutionLogo,
+    logoImage: certificate.logoImage,
     signatureImage: certificate.signatureImage,
   };
   console.log(certData);

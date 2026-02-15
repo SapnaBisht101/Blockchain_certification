@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import RequestModal from "./RequestModel";
-
-import CertificateViewer from "./CertificateViewer";
 import {
   GraduationCap,
   LogOut,
@@ -144,7 +142,6 @@ const CertificateGridItem = ({ cert, onClick }) => (
       </span>
       <span className="flex items-center text-sm font-semibold text-indigo-600 group-hover:text-indigo-800">
         View Details
-        <ChevronRight className="w-4 h-4 ml-1 transition group-hover:translate-x-0.5" />
       </span>
     </div>
   </div>
@@ -162,12 +159,11 @@ const StudentPage = () => {
       email: "loading...",
       id: "...",
       role: "Student",
-    },
+    }
   );
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [requestpage, setrequestpage] = useState(false);
-  const [selectedCertificate, setSelectedCertificate] = useState(null);
   // New state for view mode: 'list' or 'grid'
   const [viewMode, setViewMode] = useState("grid");
 
@@ -181,7 +177,7 @@ const StudentPage = () => {
       setLoading(true);
       try {
         const res = await axios.get(
-          `${API_BASE_URL}/student/certificates/${studentInfo.id}`,
+          `${API_BASE_URL}/student/certificates/${studentInfo.id}`
         );
         console.log(res);
 
@@ -274,12 +270,14 @@ const StudentPage = () => {
               </div>
             </div>
 
-            <div className="flex gap-1"><PrimaryButton onClick={handleRequest} icon={Plus}>
-              New Request
-            </PrimaryButton>
-            <PrimaryButton onClick={handleLogout} icon={LogOut}>
-              Sign Out
-            </PrimaryButton></div>
+            <div className="flex gap-1">
+              <PrimaryButton onClick={handleRequest} icon={Plus}>
+                New Request
+              </PrimaryButton>
+              <PrimaryButton onClick={handleLogout} icon={LogOut}>
+                Sign Out
+              </PrimaryButton>
+            </div>
           </div>
         </header>
 
@@ -327,28 +325,24 @@ const StudentPage = () => {
                   <CertificateListItem
                     key={cert._id}
                     cert={cert}
-                    onClick={setSelectedCertificate}
+                    onClick={() =>
+                      navigate(`/view-certificate`, { state: { cert } })
+                    }
                   />
                 ) : (
                   <CertificateGridItem
                     key={cert._id}
                     cert={cert}
-                    onClick={setSelectedCertificate}
+                    onClick={() =>
+                      navigate(`/view-certificate`, { state: { cert } })
+                    }
                   />
-                ),
+                )
               )}
             </div>
           )}
         </main>
       </div>
-
-      {/* CERTIFICATE VIEWER MODAL */}
-      <CertificateViewer
-        certData={selectedCertificate}
-        qrCodeId={selectedCertificate?.qrCodeId}
-        qrCodeImage={selectedCertificate?.qrImage}
-        onClose={() => setSelectedCertificate(null)}
-      />
 
       {requestpage && (
         <RequestModal

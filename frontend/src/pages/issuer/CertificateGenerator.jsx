@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { useMessage } from "../GlobalMessageProvider";
+import { useMessage } from "../GlobalMessageProvider.jsx";
 import axios from "axios";
-import { fetchUserDetails } from "../../js/fetch";
+import { fetchUserDetails } from "../../js/fetch.js";
 import { useLocation } from "react-router";
 import Tempelate from "../../components/Tempelate.jsx"
 import handleDownloadPDF from "../../components/Downloadpdf.js";

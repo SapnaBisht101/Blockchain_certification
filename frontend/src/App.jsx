@@ -7,9 +7,9 @@ import Main from "./pages/Main"
 import AdminPage from "./pages/admin/Admin";
 import StudentPage from "./pages/student/Student";
 import IssuerVerifierPage from "./pages/issuer/Issuer";
-import Template from "./pages/issuer/Certificate_Tempelate";
+import Template from "./pages/issuer/CertificateGenerator";
 import LearnMorePage from "./pages/LearnMorePage";
-import CertificateDetails from "./pages/issuer/CertificateDetails";
+import CertificateDetails from "./components/CertificateDetails";
 import VerifyOtp from "./pages/VerifyOtp";
 import ForgetPassword from "./pages/ForgetPassword";
 function App() {
