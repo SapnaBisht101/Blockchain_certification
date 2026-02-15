@@ -1,0 +1,77 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    {
+      "id": "issuer_box",
+      "type": "rectangle",
+      "x": -400, "y": -200, "width": 200, "height": 350,
+      "backgroundColor": "#e7f5ff",
+      "strokeColor": "#1971c2",
+      "roundness": { "type": 3 },
+      "text": "ISSUER (Admin Panel)"
+    },
+    {
+      "id": "backend_box",
+      "type": "rectangle",
+      "x": -50, "y": -200, "width": 300, "height": 350,
+      "backgroundColor": "#fff4e6",
+      "strokeColor": "#f08c00",
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "hash_engine",
+      "type": "diamond",
+      "x": 25, "y": -100, "width": 150, "height": 100,
+      "backgroundColor": "#f3f0ff",
+      "strokeColor": "#7048e8",
+      "text": "SHA-256 Hashing"
+    },
+    {
+      "id": "blockchain_cloud",
+      "type": "ellipse",
+      "x": 400, "y": -220, "width": 250, "height": 150,
+      "backgroundColor": "#f8f9fa",
+      "strokeColor": "#212529",
+      "strokeStyle": "dashed",
+      "text": "Ethereum (Sepolia)\nSmart Contract"
+    },
+    {
+      "id": "mongodb_cyl",
+      "type": "rectangle",
+      "x": 400, "y": 20, "width": 200, "height": 100,
+      "backgroundColor": "#ebfbee",
+      "strokeColor": "#2f9e44",
+      "roundness": { "type": 3 },
+      "text": "MongoDB\n(Off-Chain Data)"
+    },
+    {
+      "id": "arrow_issue",
+      "type": "arrow",
+      "x": -200, "y": -150, "points": [[0,0], [150,0]],
+      "text": "1. Send Details"
+    },
+    {
+      "id": "arrow_chain",
+      "type": "arrow",
+      "x": 250, "y": -140, "points": [[0,0], [150, -30]],
+      "text": "2. issueCertificate(hash)"
+    },
+    {
+      "id": "arrow_db",
+      "type": "arrow",
+      "x": 250, "y": -50, "points": [[0,0], [150, 80]],
+      "text": "3. Store metadata + TxHash"
+    },
+    {
+      "id": "verify_logic",
+      "type": "rectangle",
+      "x": -50, "y": 250, "width": 700, "height": 200,
+      "backgroundColor": "#fff5f5",
+      "strokeColor": "#e03131",
+      "text": "VERIFICATION LOGIC (verify-data)\n\n[Blockchain Hash] == [Regenerated DB Hash]? \nYES -> Authentic ✅ | NO -> TAMPERED 🚨"
+    }
+  ],
+  "appState": { "viewBackgroundColor": "#ffffff", "gridSize": 20 }
+}

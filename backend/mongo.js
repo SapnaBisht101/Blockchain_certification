@@ -54,10 +54,41 @@ const CertificateSchema = new mongoose.Schema({
   isOnChain: { type: Boolean, default: false }, // blockchain pe hai ya nhi 
 });
 
+
+const reqSchema = new mongoose.Schema({
+    studentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Student",
+        required: true
+    },
+    issuerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Issuer",
+        required: true
+    },
+    message: {
+        type: String,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ["pending", "issued", "rejected"],
+        default: "pending"
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+
+
+
 // --- MODEL CREATION ---
 const IssuerVerifier = mongoose.model('IssuerVerifier', IssuerSchema);
 const Admin = mongoose.model('Admin', AdminSchema);
 const Student = mongoose.model('Student', StudentSchema);
 const Certificate = mongoose.model('Certificate', CertificateSchema);
+const CertiRequest = mongoose.model('CertiRequest',reqSchema)
 
-export { IssuerVerifier as iss_verifier, Student as student, Certificate as certificate, Admin as admin };
+export { IssuerVerifier as iss_verifier, Student as student, Certificate as certificate, Admin as admin ,CertiRequest as certReq};

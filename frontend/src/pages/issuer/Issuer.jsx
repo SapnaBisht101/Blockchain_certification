@@ -22,6 +22,9 @@ const Issuer = () => {
   const navigate = useNavigate();
   const [issuedCertificates, setIssuedCertificates] = useState([]);
   const [totalCertificates, setTotalCertificates] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState([]);
+const [showPending, setShowPending] = useState(false);
+
   const [issuerProfile, setIssuerProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,6 +76,24 @@ const Issuer = () => {
   const handleVerify = () => {
     navigate("/verify");
   };
+const handlePendingClick = async () => {
+  try {
+    setShowPending(true);
+    setIsLoading(true);
+
+    const res = await axios.get(
+      `http://localhost:4000/issuer/request/pending/${details.id}`
+    );
+
+    setPendingRequests(res.data.requests || []);
+  } catch (err) {
+    console.error("Error fetching pending requests");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   return (
     <div className=" w-full ml-64 min-h-screen " style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
@@ -91,10 +112,14 @@ const Issuer = () => {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-4">
-          <button className="w-full flex items-center gap-3 px-4 border  border-white py-3 bg-gray-300 text-black rounded-lg font-medium transition-all">
-            <Award className="w-5 h-5" />
-            <span>Certificates</span>
-          </button>
+         <button
+  onClick={() => setShowPending(false)}
+  className="w-full flex items-center gap-3 px-4 border border-white py-3 bg-gray-300 text-black rounded-lg font-medium transition-all"
+>
+  <Award className="w-5 h-5" />
+  <span>Certificates</span>
+</button>
+
           <button onClick={()=>handleIssueNew()} className="w-full flex border  border-white items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 hover:border-gray-400 rounded-lg font-medium transition-all">
             <FileText className="w-5 h-5" />
             <span>Issue New </span>
@@ -102,6 +127,10 @@ const Issuer = () => {
           <button onClick={()=>navigate("/verify")} className="w-full flex border  border-white  items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 hover:border-gray-400 rounded-lg font-medium transition-all">
             <User className="w-5 h-5" />
             <span>Verify</span>
+          </button>
+          <button onClick={handlePendingClick}className="w-full flex border  border-white  items-center gap-3 px-4 py-3 text-black hover:bg-gray-100 hover:border-gray-400 rounded-lg font-medium transition-all">
+            <User className="w-5 h-5" />
+            <span>Pending Requests</span>
           </button>
        
         </nav>
@@ -268,12 +297,14 @@ const Issuer = () => {
           {/* Certificates Section Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-3xl font-bold text-black mb-1 bg-gradient-to-r from-black via-gray-800 to-gray-600 bg-clip-text text-transparent">
-                Issued Certificates
-              </h2>
-              <p className="text-gray-600 text-sm">
-                {filteredCertificates.length} certificate{filteredCertificates.length !== 1 ? 's' : ''} found
-              </p>
+             <h2 className="text-3xl font-bold text-black mb-1">
+  {showPending ? "Pending Requests" : "Issued Certificates"}
+</h2>
+<p className="text-gray-600 text-sm">
+  {showPending
+    ? `${pendingRequests.length} pending request(s)`
+    : `${filteredCertificates.length} certificate(s) found`}
+</p>  
             </div>
 
             <div className="flex items-center gap-3">
@@ -308,7 +339,7 @@ const Issuer = () => {
           )}
 
           {/* Certificates Grid View */}
-          {!isLoading && viewMode === "grid" && (
+          {!isLoading && !showPending && viewMode === "grid" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCertificates.map((cert) => (
                 <div
@@ -357,7 +388,7 @@ const Issuer = () => {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-black hover:bg-gray-100 rounded-lg font-medium text-xs transition-all"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      View
+                      View Detailsficate
                     </button>
                   </div>
                 </div>
@@ -366,7 +397,7 @@ const Issuer = () => {
           )}
 
           {/* List View */}
-          {!isLoading && viewMode === "list" && (
+          {!isLoading && !showPending && viewMode === "list" && (
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <table className="w-full">
                 <thead className="bg-black text-white">
@@ -425,7 +456,7 @@ const Issuer = () => {
           )}
 
           {/* Empty State */}
-          {!isLoading && filteredCertificates.length === 0 && (
+          {!isLoading && !showPending && filteredCertificates.length === 0 && (
             <div className="bg-white border border-gray-200 rounded-2xl p-16 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-8 h-8 text-gray-400" />
@@ -445,6 +476,65 @@ const Issuer = () => {
               )}
             </div>
           )}
+
+          {!isLoading && showPending && (
+  <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+    {pendingRequests.length === 0 ? (
+      <p className="text-gray-500">No pending requests.</p>
+    ) : (
+      pendingRequests.map((req) => (
+        <div
+          key={req._id}
+          className="border rounded-xl p-4 flex justify-between items-center hover:shadow-sm transition"
+        >
+          <div>
+            <p className="font-semibold text-black">
+              {req.studentId?.name}
+            </p>
+            <p className="text-sm text-gray-600">
+              {req.studentId?.email}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {req.message}
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                navigate("/issue", {
+                  state: {
+                    ...issuerProfile,
+                    studentEmail: req.studentId?.email,
+                  },
+                });
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm"
+            >
+              Issue
+            </button>
+
+            <button
+              onClick={async () => {
+                await axios.delete(
+                  `http://localhost:4000/request/${req._id}`
+                );
+
+                setPendingRequests((prev) =>
+                  prev.filter((r) => r._id !== req._id)
+                );
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+)}
+
 
         </main>
       </div>

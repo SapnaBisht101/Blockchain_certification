@@ -1,5 +1,5 @@
 import express from "express";
-import { certificate as Certificate } from "../mongo.js"; 
+import { certificate as Certificate,certReq as Request } from "../mongo.js"; 
 
 const router = express.Router();
 
@@ -60,5 +60,32 @@ router.get("/certificates/:studentId", async (req, res) => {
         });
     }
 });
+
+
+
+router.post("/request/create", async (req, res) => {
+    try {
+        const { studentId, issuerId, message } = req.body;
+
+        if (!studentId || !issuerId || !message) {
+            return res.status(400).json({ message: "All fields required" });
+        }
+
+        const newRequest = new Request({
+            studentId,
+            issuerId,
+            message
+        });
+
+        await newRequest.save();
+
+        res.status(201).json({ message: "Request created successfully" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 
 export default router;

@@ -1,10 +1,10 @@
-# 🎓 CertiChain: Blockchain-Based Certificate Verification System
+# CertiChain: Blockchain-Based Certificate Verification System
 
 **CertiChain** is a hybrid certificate issuance and verification platform that combines the speed of **MongoDB** with the immutable security of **Ethereum Blockchain**. It prevents certificate forgery by storing a unique SHA-256 cryptographic fingerprint (hash) of each certificate on the blockchain.
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 * **Immutable Proof:** Each certificate hash is locked onto the blockchain, making it impossible to alter or fake.
 * **Hybrid Verification:** Performs a dual-check against MongoDB records and Blockchain state.
@@ -15,7 +15,7 @@
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 * **Backend:** Node.js, Express.js
 * **Database:** MongoDB (Mongoose ODM)
@@ -25,7 +25,7 @@
 
 ---
 
-## 🏗 System Architecture
+##  System Architecture
 
 1. **Issuance:** Issuer generates a certificate  System creates a SHA-256 hash:
 
@@ -40,7 +40,7 @@
 
 ---
 
-## ⚙️ Setup & Installation
+##  Setup & Installation
 
 ### 1. Blockchain Setup
 
@@ -78,7 +78,7 @@ npm run dev
 
 ---
 
-## 📝 Smart Contract Logic
+##  Smart Contract Logic
 
 The core logic resides in `CertificateRegistry.sol`:
 
@@ -88,7 +88,7 @@ The core logic resides in `CertificateRegistry.sol`:
 
 ---
 
-## 🤝 Contribution
+##  Contribution
 
 This project was developed as a Major Project to solve the problem of academic document fraud.
 
