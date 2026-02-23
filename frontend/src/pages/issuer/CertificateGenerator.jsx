@@ -79,6 +79,7 @@ const CertificateGenerator = () => {
   });
 
   let  stemail = issuerDetails.studentEmail
+  let remove_request = issuerDetails.remove_request
   console.log(stemail);
   
   const [studentemail, setstudentemail] = useState(stemail?stemail:"");
@@ -166,6 +167,7 @@ const handleGenerateQrCode = async () => {
       institutionName: certData.institutionName,
       certificateTitle: certData.certificateTitle,
       certificateDescription: certData.certificateDescription,
+      remove_request:remove_request,
     };
 
     console.log('API Request Payload:', payload);

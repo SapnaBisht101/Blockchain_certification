@@ -2,7 +2,7 @@ import express from "express";
 import QRCode from "qrcode";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto"; 
-import { certificate as Certificate, student as Student, iss_verifier as Issuer } from "../mongo.js"; 
+import {certReq as CertiRequest ,  certificate as Certificate, student as Student, iss_verifier as Issuer } from "../mongo.js"; 
 import { contract } from "../utils/blockchain.js"; // Aapka blockchain connection
 import multer from "multer";
 import jsQR from "jsqr";
@@ -137,7 +137,11 @@ router.post("/generate-qr", async (req, res) => {
       certificateTitle,
       certificateDescription,
     } = req.body;
-
+    console.log("issuing the certificate ");
+    let remove_request = req.body.remove_request
+    console.log("Delete the request ", remove_request);
+    
+    
     const student = await Student.findOne({ email: studentEmail });
     const issuer = await Issuer.findOne({ issuerName });
 
@@ -192,7 +196,19 @@ router.post("/generate-qr", async (req, res) => {
     });
 
     await newCert.save();
-    
+
+    if (remove_request) {
+  console.log("🗑 Removing certificate request...");
+
+  const deletedRequest = await CertiRequest.findByIdAndDelete(remove_request);
+
+  if (!deletedRequest) {
+    console.log("⚠️ Request not found for deletion");
+  } else {
+    console.log("✅ Certificate request deleted successfully");
+  }
+}
+
     return res.json({
       success: true,
       message: "Certificate secured on Blockchain!",

@@ -552,6 +552,7 @@ const Issuer = () => {
                             state: {
                               ...issuerProfile,
                               studentEmail: req.studentId?.email,
+                              remove_request:req._id,
                             },
                           });
                         }}
@@ -560,7 +561,7 @@ const Issuer = () => {
                         Issue
                       </button>
 
-                      <button
+                      {/* <button
                         onClick={async () => {
                           await axios.delete(
                             `http://localhost:4000/request/${req._id}`
@@ -572,8 +573,8 @@ const Issuer = () => {
                         }}
                         className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
                       >
-                        Reject
-                      </button>
+                        Done
+                      </button> */}
                     </div>
                   </div>
                 ))
