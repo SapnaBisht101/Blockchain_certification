@@ -218,7 +218,7 @@ const FeatureCard = ({ icon, title, description }) => (
     <footer className="border-t border-gray-200 py-10 text-center text-gray-500 text-sm">
 
       <p>
-        © {new Date().getFullYear()} DCAVE — Decentralized Certificate Verification Engine
+        © {new Date().getFullYear()} DECIVE — Decentralized Certificate Verification Engine
       </p>
 
       <div className="flex justify-center gap-6 mt-3">

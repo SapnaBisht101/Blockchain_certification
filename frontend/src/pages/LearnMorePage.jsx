@@ -10,7 +10,7 @@ const Header = () => (
 <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
 
 <h1 className="text-2xl md:text-3xl font-bold text-blue-600 tracking-tight">
-DCAVE
+DECIVE
 </h1>
 
 <Link
@@ -33,7 +33,7 @@ const SystemFlow = () => (
 <div className="max-w-6xl mx-auto px-6">
 
 <h2 className="text-3xl font-bold text-gray-900 text-center mb-16">
-DCAVE Verification Flow
+DECIVE Verification Flow
 </h2>
 
 <div className="grid md:grid-cols-3 gap-10 items-center text-center">
@@ -97,7 +97,7 @@ const HowItWorks = () => (
 <div className="max-w-5xl mx-auto px-6">
 
 <h2 className="text-3xl font-bold text-gray-900 text-center mb-20">
-How DCAVE Works
+How DECIVE Works
 </h2>
 
 <div className="space-y-12">
@@ -209,7 +209,7 @@ Verify Certificates Instantly
 </h2>
 
 <p className="text-gray-600 mt-4">
-Use DCAVE blockchain verification system to validate credentials securely.
+Use DECIVE blockchain verification system to validate credentials securely.
 </p>
 
 <Link
@@ -228,7 +228,7 @@ Verify Certificate
 
 const Footer = () => (
 <footer className="py-10 border-t border-gray-200 text-center text-gray-500 text-sm">
-© {new Date().getFullYear()} DCAVE — Decentralized Certificate Verification Engine
+© {new Date().getFullYear()} DECIVE — Decentralized Certificate Verification Engine
 </footer>
 );
 
