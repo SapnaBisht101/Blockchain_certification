@@ -21,7 +21,7 @@ export async function sendOtpEmail(toEmail, name, otp) {
   
   try {
    await transporter.sendMail({
-  from: "QR Certify <no-reply@QR Certify.com>",
+  from: "DECIVE <no-reply@DECIVE.com>",
   to: toEmail,
   subject: "Your Email Verification Code (OTP)",
  html: `
@@ -65,7 +65,7 @@ export async function sendOtpEmail(toEmail, name, otp) {
     </p>
 
     <p style="text-align: center; color: #555; font-size: 15px; line-height: 1.6; margin-top: 10px;">
-      Thank you for registering with <strong>QR Certify</strong>.<br>
+      Thank you for registering with <strong>DECIVE</strong>.<br>
       Please use the verification code below to activate your account:
     </p>
 

@@ -20,7 +20,7 @@ export async function sendForgotPasswordEmail(toEmail, name, otp) {
 
   try {
     await transporter.sendMail({
-      from: "QR Certify <no-reply@qrcertify.com>",
+      from: "DECIVE <no-reply@qrcertify.com>",
       to: toEmail,
       subject: "Reset Your Password – OTP Verification",
 
@@ -65,7 +65,7 @@ export async function sendForgotPasswordEmail(toEmail, name, otp) {
         </p>
 
         <p style="text-align: center; color: #555; font-size: 15px; line-height: 1.6; margin-top: 10px;">
-          You requested to reset the password for your <strong>QR Certify</strong> account.
+          You requested to reset the password for your <strong>DECIVE</strong> account.
           <br>Please use the OTP below to proceed:
         </p>
 

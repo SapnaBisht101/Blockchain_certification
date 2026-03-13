@@ -208,7 +208,7 @@ const handleGenerateQrCode = async () => {
           {/* Left Column: Controls (Smaller/Fixed Width on large screens) */}
           <div className="lg:w-1/3 w-full  border border-gray-200 rounded-xl shadow-lg p-6 mb-6 lg:mb-0 lg:sticky lg:top-10 lg:h-fit">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              QR Certify 
+              DECIVE 
             </h2>
 
             {/* Status Message */}

@@ -64,7 +64,7 @@ const InputField = React.memo(
         />
       </div>
     );
-  }
+  },
 );
 
 InputField.displayName = "InputField";
@@ -98,20 +98,22 @@ const Login = () => {
         setStatusMessage({ type: "success", text: "✅ Login successful!" });
         const info = res.data.user;
         localStorage.setItem("user", JSON.stringify(info));
-        
+
         // Small delay to show success message before navigation
         setTimeout(() => {
-            setFormData({ email: "", password: "" });
-            if (role === "student") navigate("/student", { state: info });
-            else if (role === "admin") navigate("/admin", { state: info });
-            else navigate("/issuer", { state: info });
+          setFormData({ email: "", password: "" });
+          if (role === "student") navigate("/student", { state: info });
+          else if (role === "admin") navigate("/admin", { state: info });
+          else navigate("/issuer", { state: info });
         }, 800);
       }
     } catch (err) {
       console.error("Login Error:", err);
       setStatusMessage({
         type: "error",
-        text: err.response?.data?.message || "❌ Login failed. Please check your credentials.",
+        text:
+          err.response?.data?.message ||
+          "❌ Login failed. Please check your credentials.",
       });
     } finally {
       setIsLoading(false);
@@ -119,98 +121,129 @@ const Login = () => {
   };
 
   const handleForgetPassword = () => {
-    navigate("/forget")
+    navigate("/forget");
   };
 
   return (
-   <div className="w-screen h-screen flex justify-center items-center bg-[#F9FAFB] p-4 font-sans overflow-hidden">
-  {/* Card Container: max-w badha di aur flex-row add kiya image include karne ke liye */}
-  <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl shadow-gray-200/50 border border-blue-300  flex flex-col md:flex-row overflow-hidden max-h-[95vh]">
-    
-    {/* Form Section */}
-    <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
-      {/* Header Section */}
-      <div className="text-center mb-6 shrink-0">
-        <h2 className="text-3xl font-extrabold tracking-tight mb-1">
-          <GradientText>Welcome Back</GradientText>
-        </h2>
-        <p className={`text-sm ${TEXT_MUTED}`}>
-          Sign in to access your portal.
-        </p>
-      </div>
-
-      {/* Custom Role Selector */}
-      <div className="bg-white p-1.5 rounded-2xl flex gap-1 border border-blue-300 mb-6 shrink-0">
-        <RoleTab
-          currentRole={role}
-          targetRole="student"
-          label="Student"
-          description="Holder"
-          setRole={setRole}
-        />
-        <RoleTab
-          currentRole={role}
-          targetRole="issuerVerifier"
-          label="Issuer"
-          description="Institution"
-          setRole={setRole}
-        />
-        <RoleTab
-          currentRole={role}
-          targetRole="admin"
-          label="Admin"
-          description="Manager"
-          setRole={setRole}
-        />
-      </div>
-
-      {/* Status Message */}
-      {statusMessage && (
-        <div className={`p-3 mb-4 rounded-xl text-center text-sm font-medium animate-pulse shrink-0 ${
-          statusMessage.type === "error" ? "bg-red-50 text-red-600 border border-red-100" : statusMessage.type === "success" ? "bg-green-50 text-green-600 border border-green-100" : "bg-blue-50 text-blue-600 border border-blue-100"
-        }`}>
-          {statusMessage.text}
-        </div>
-      )}
-
-      {/* Login Form */}
-      <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
-        <div className="space-y-4">
-          <InputField name="email" type="email" placeholder="Email Address" value={formData.email} handleChange={handleChange} />
-          <InputField name="password" type="password" placeholder="Password" value={formData.password} handleChange={handleChange} />
-        </div>
-
-        <div className="mt-2 text-right">
-          <button type="button" onClick={handleForgetPassword} className={`text-xs font-semibold ${TEXT_MUTED} hover:text-blue-600 hover:underline transition-colors duration-300`}>
-            Forgot Password?
-          </button>
-        </div>
-
-        <div className="mt-8 pt-2">
-          <button type="submit" disabled={isLoading} className="w-full py-3.5 border-2 border-blue-600 hover:bg-white hover:text-blue-600 rounded-xl bg-blue-600 text-white font-bold text-lg transition-all duration-300 transform disabled:opacity-70 flex justify-center items-center">
-            {isLoading ? "Verifying..." : "Sign In"}
-          </button>
-
-          <div className="mt-6 text-center">
-            <Link to="/register" className={`text-sm font-medium ${TEXT_MUTED} hover:${TEXT_DARK} transition duration-300`}>
-              New to the platform? <span className="font-bold underline text-blue-500 decoration-2 decoration-blue-500 hover:text-blue-600"> Create account</span>
-            </Link>
+    <div className="w-screen h-screen flex justify-center items-center bg-[#F9FAFB] p-4 font-sans overflow-hidden">
+      {/* Card Container: max-w badha di aur flex-row add kiya image include karne ke liye */}
+      <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl shadow-gray-200/50 border border-blue-300  flex flex-col md:flex-row overflow-hidden max-h-[95vh]">
+        {/* Form Section */}
+        <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+          {/* Header Section */}
+          <div className="text-center mb-6 shrink-0">
+            <h2 className="text-3xl font-extrabold tracking-tight mb-1">
+              <GradientText>Welcome Back</GradientText>
+            </h2>
+            <p className={`text-sm ${TEXT_MUTED}`}>
+              Sign in to access your portal.
+            </p>
           </div>
+
+          {/* Custom Role Selector */}
+          <div className="bg-white p-1.5 rounded-2xl flex gap-1 border border-blue-300 mb-6 shrink-0">
+            <RoleTab
+              currentRole={role}
+              targetRole="student"
+              label="Student"
+              description="Holder"
+              setRole={setRole}
+            />
+            <RoleTab
+              currentRole={role}
+              targetRole="issuerVerifier"
+              label="Issuer"
+              description="Institution"
+              setRole={setRole}
+            />
+            <RoleTab
+              currentRole={role}
+              targetRole="admin"
+              label="Admin"
+              description="Manager"
+              setRole={setRole}
+            />
+          </div>
+
+          {/* Status Message */}
+          {statusMessage && (
+            <div
+              className={`p-3 mb-4 rounded-xl text-center text-sm font-medium animate-pulse shrink-0 ${
+                statusMessage.type === "error"
+                  ? "bg-red-50 text-red-600 border border-red-100"
+                  : statusMessage.type === "success"
+                    ? "bg-green-50 text-green-600 border border-green-100"
+                    : "bg-blue-50 text-blue-600 border border-blue-100"
+              }`}
+            >
+              {statusMessage.text}
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
+            <div className="space-y-4">
+              <InputField
+                name="email"
+                type="email"
+                placeholder="Email Address"
+                value={formData.email}
+                handleChange={handleChange}
+              />
+              <InputField
+                name="password"
+                type="password"
+                placeholder="Password"
+                value={formData.password}
+                handleChange={handleChange}
+              />
+            </div>
+
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={handleForgetPassword}
+                className={`text-xs font-semibold ${TEXT_MUTED} hover:text-blue-600 hover:underline transition-colors duration-300`}
+              >
+                Forgot Password?
+              </button>
+            </div>
+
+            <div className="mt-8 pt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3.5 border-2 border-blue-600 hover:bg-white hover:text-blue-600 rounded-xl bg-blue-600 text-white font-bold text-lg transition-all duration-300 transform disabled:opacity-70 flex justify-center items-center"
+              >
+                {isLoading ? "Verifying..." : "Sign In"}
+              </button>
+
+              <div className="mt-6 text-center">
+                <Link
+                  to="/register"
+                  className={`text-sm text-gray-500 font-medium transition duration-300`}
+                >
+                  New to the platform?{" "}
+                  <span className="font-bold  hover:text-blue-600">
+                    {" "}
+                    Create account
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </form>
         </div>
-      </form>
-    </div>
 
-    {/* Adjusted Image Section: Card ke andar, right side par */}
-    <div className="hidden md:flex md:w-1/2 bg-gray-50 items-center justify-center p-8 border-l border-gray-100">
-      <img 
-        src="/hero_image.png" 
-        alt="login image" 
-        className="w-full max-w-[350px] h-auto object-contain" 
-      />
+        {/* Adjusted Image Section: Card ke andar, right side par */}
+        <div className="hidden md:flex md:w-1/2 bg-gray-50 items-center justify-center p-8 border-l border-gray-100">
+          <img
+            src="/hero_image.png"
+            alt="login image"
+            className="w-full max-w-[350px] h-auto object-contain"
+          />
+        </div>
+      </div>
     </div>
-
-  </div>
-</div>
   );
 };
 

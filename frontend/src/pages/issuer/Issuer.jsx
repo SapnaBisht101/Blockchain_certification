@@ -124,7 +124,7 @@ const Issuer = () => {
               <Shield className="w-6 h-6 text-white" />
             </div>
             <span className="font-semibold text-xl text-black tracking-tight">
-              QR Certify
+              DECIVE
             </span>
           </div>
         </div>

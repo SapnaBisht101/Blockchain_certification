@@ -5,12 +5,12 @@ import { useNavigate, Link } from "react-router-dom";
 // --- Theme Constants ---
 const TEXT_DARK = "text-gray-900";
 const TEXT_MUTED = "text-gray-500";
-const BORDER_LIGHT = "border-gray-200";
+const BORDER_LIGHT = "border-blue-200";
 
 // Helper for Gradient Text
 const GradientText = ({ children, className = "" }) => (
   <span
-    className={`bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 ${className}`}
+    className={`bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-blue-500 ${className}`}
   >
     {children}
   </span>
@@ -23,10 +23,10 @@ const RoleTab = ({ currentRole, targetRole, label, setRole, description }) => {
     <button
       type="button"
       onClick={() => setRole(targetRole)}
-      className={`flex-1 py-3 px-2 w-30 rounded-xl text-sm font-medium transition-all  duration-300 border ${
+      className={`flex-1 py-3 px-2 rounded-xl w-28 text-sm font-medium transition-all duration-300  ${
         isActive
-          ? "bg-white border-white text-gray-900 transform scale-[1.02]"
-          : "bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          ? "bg-blue-600  text-white transform scale-[1.02]"
+          : "bg-transparent  text-gray-400 hover:text-blue-600 hover:bg-blue-50"
       }`}
     >
       <div className="flex flex-col items-center justify-center">
@@ -76,9 +76,9 @@ const InputField = React.memo(
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-full file:border-0
                 file:text-xs file:font-semibold
-                file:bg-gray-100 file:text-gray-700
-                hover:file:bg-gray-200
-                cursor-pointer border ${BORDER_LIGHT} rounded-xl bg-gray-50/50 py-2 pl-2 transition duration-300`}
+                file:bg-blue-50 file:text-blue-600
+                hover:file:bg-blue-200
+                cursor-pointer border ${BORDER_LIGHT} rounded-xl bg-blue-50/50 py-2 pl-2 transition duration-300`}
             />
           </div>
         ) : (
@@ -90,7 +90,7 @@ const InputField = React.memo(
             value={value || ""}
             onChange={handleChange}
             required={required}
-            className={`w-full py-3 px-4 rounded-xl border ${BORDER_LIGHT} bg-gray-50/50 ${TEXT_DARK} placeholder-gray-400 focus:ring-2 focus:ring-gray-200 focus:border-gray-400 focus:bg-white transition duration-300 outline-none`}
+            className={`w-full py-3 px-4 rounded-xl   bg-blue-50/50 ${TEXT_DARK} placeholder-gray-400 focus:ring-2 focus:ring-blue-200  focus:bg-white transition duration-300 `}
           />
         )}
       </div>
@@ -229,7 +229,7 @@ const Register = () => {
         </div>
 
         {/* Custom Role Selector (No Dropdown) */}
-        <div className="bg-gray-100/80 p-1.5 rounded-2xl border border-gray-400  flex mb-6  self-center  ">
+        <div className="bg-white p-1.5 rounded-2xl border border-blue-300  flex mb-6   ">
           <RoleTab
             currentRole={role}
             targetRole="student"
@@ -269,7 +269,7 @@ const Register = () => {
         {/* Scrollable Form Area */}
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col flex-grow overflow-y-auto px-1 custom-scrollbar"
+          className="flex flex-col flex-grow px-1 custom-scrollbar"
         >
           {isIssuer ? (
             /* --- ISSUER LAYOUT (2 Columns) --- */
@@ -277,7 +277,7 @@ const Register = () => {
               {/* Left Column: Personal Info */}
               <div className="flex flex-col gap-4">
                 <div className="mb-2">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2">User Details</h3>
+                    <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-4 border-b pb-2">User Details</h3>
                     <div className="space-y-4">
                         <InputField
                         name="name"
@@ -312,7 +312,7 @@ const Register = () => {
               {/* Right Column: Institution Info */}
               <div className="flex flex-col gap-4">
                  <div className="mb-2">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2">Organization</h3>
+                    <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-4 border-b pb-2">Organization</h3>
                     <div className="space-y-4">
                         <InputField
                         name="institutionName"
@@ -371,7 +371,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full py-3.5 rounded-xl bg-gray-900 text-white font-bold text-lg hover:bg-gray-800 transition-all duration-300 shadow-xl shadow-gray-900/20 transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center`}
+              className={`w-full py-3.5 border-2 border-blue-600 rounded-xl bg-blue-600 text-white hover:text-blue-600 font-bold text-lg hover:bg-white transition-all duration-300  disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center`}
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
@@ -405,11 +405,11 @@ const Register = () => {
             <div className="mt-4 text-center">
               <Link
                 to="/login"
-                className={`text-sm font-medium ${TEXT_MUTED} hover:${TEXT_DARK} transition duration-300`}
+                className={`text-sm font-medium ${TEXT_MUTED}  transition duration-300`}
               >
                 Already registered?{" "}
-                <span className="font-bold underline decoration-2 decoration-gray-200 hover:decoration-gray-900">
-                  Log in here.
+                <span className="font-bold  hover:text-blue-600">
+                   Log in here
                 </span>
               </Link>
             </div>

@@ -54,7 +54,7 @@ const ForgetPassword = () => {
       <div className="backdrop-blur-xl bg-white/40 border border-white/30 shadow-2xl p-10 rounded-3xl w-full max-w-md">
 
         {/* Header */}
-        <h2 className="text-3xl font-bold text-gray-900 mb-1 text-center">
+        <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-blue-500 mb-4 text-center">
           {step === 1 ? "Forgot Password" : "Reset Password"}
         </h2>
 
@@ -74,19 +74,19 @@ const ForgetPassword = () => {
               placeholder="Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full py-3 px-4 rounded-xl border border-gray-300 bg-white/60 backdrop-blur-sm focus:ring-2 focus:ring-gray-800 outline-none"
+              className="w-full py-3 px-4 rounded-xl border-gray-300 border bg-white/60 backdrop-blur-sm focus:ring-2 focus:ring-blue-600 outline-none"
             />
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gray-900 text-white font-semibold hover:bg-gray-800 transition duration-300 shadow-md disabled:opacity-50"
+                className="w-full py-3.5 border-2 border-blue-600 hover:bg-white hover:text-blue-600 rounded-xl bg-blue-600 text-white font-bold text-lg transition-all duration-300 transform disabled:opacity-70 flex justify-center items-center"
             >
               {loading ? "Sending..." : "Send OTP"}
             </button>
 
             <div className="text-center mt-2">
-              <Link to="/login" className="text-gray-700 hover:underline">
+              <Link to="/login" className="text-gray-700 hover:underline hover:text-blue-600">
                 Back to Login
               </Link>
             </div>
