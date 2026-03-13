@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 contract CertificateRegistry {
     address public owner;
 
-    // --- STRUCT: Ek Certificate ka Data ---
+    // --- STRUCT: Ek Certificate ka Data --- i.e self data type banaya hai
     struct CertData {
         string certificateHash; // SHA-256 Hash (Fingerprint)
         string ipfsCID;         // Recovery Link (Backup)
@@ -14,7 +14,7 @@ contract CertificateRegistry {
 
     // --- MAPPING: Locker System ---
     // Key: qrCodeId (Unique String) => Value: CertData
-    mapping(string => CertData) public certificates;
+    mapping(string => CertData) public certificates;      //i.e har unique qr id ke lye ek certificate data store krenge
 
     // --- EVENT: Log maintain karne ke liye ---
     event CertificateIssued(
@@ -31,7 +31,7 @@ contract CertificateRegistry {
     }
 
     constructor() {
-        owner = msg.sender; // Deploy karne wala wallet Owner ban jayega
+        owner = msg.sender; // Deploy karne wala wallet Owner ban jayega first time  jo chlayega
     }
 
     // --- FUNCTION 1: ISSUE CERTIFICATE (Write) ---

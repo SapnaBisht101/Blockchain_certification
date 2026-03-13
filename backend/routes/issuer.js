@@ -60,6 +60,7 @@ router.get("/request/pending/:issuerId", async (req, res) => {
     }
 });
 
+
 router.delete("/request/:requestId", async (req, res) => {
     try {
         await Request.findByIdAndDelete(req.params.requestId);

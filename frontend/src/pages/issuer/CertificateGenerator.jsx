@@ -194,7 +194,7 @@ const handleGenerateQrCode = async () => {
     showMessage(`QR Code generated ✅ ID: ${qrCodeId}`);
   } catch (e) {
     console.error('Error:', e.message);
-    showMessage("QR generation failed ❌");
+    showMessage("Some Error Occured ❌","error");
   } finally {
     setLoading(false);
   }
@@ -313,14 +313,14 @@ const handleGenerateQrCode = async () => {
                   ? `Certificate Issued Successfully: ${qrCodeId}`
                   : loading
                   ? "Generating..."
-                  : "2. Issue Certificate"}
+                  : "Issue Certificate"}
               </button>
               <button
                 onClick={()=>handleDownloadPDF(qrCodeImage,qrCodeId,setLoading,showMessage,certData)}
                 disabled={loading || !qrCodeImage}
                 className="w-full px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition duration-300 disabled:opacity-50"
               >
-                {loading ? "Generating PDF..." : "3. Download Certificate (PDF)"}
+                {loading ? "Generating PDF..." : "Download Certificate PDF"}
               </button>
             </div>
           </div>

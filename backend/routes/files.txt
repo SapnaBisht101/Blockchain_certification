@@ -1,0 +1,244 @@
+; LXI H,2500H
+; MOV C,M        ; C = count
+
+; MOV A,C
+; CPI 01H        ; compare with 1
+; JC END         ; if 0 elements
+; JZ END         ; if 1 element (no sorting needed)
+
+; DCR C
+
+; OUTER:
+; LXI H,2501H
+; MOV B,C
+
+; INNER:
+; MOV A,M
+; INX H
+; CMP M
+; JC SKIP
+
+; MOV D,M
+; MOV M,A
+; DCX H
+; MOV M,D
+; INX H
+
+; SKIP:
+; DCR B
+; JNZ INNER
+
+; DCR C
+; JNZ OUTER
+
+; END:
+; HLT
+
+; ORG 0000H
+; LXI H, 2500H
+; MVI B,0AH
+
+; OUTER:
+; MOV A,M
+; MOV C,A
+; DCR C
+
+; INNER:
+; ADD M
+; DCR C
+; JNZ INNER
+; MOV M,A
+; DCR B
+; INX H
+; JNZ OUTER
+
+; HLT
+
+
+; Add 2 number of 8bit
+; ORG 2000H
+; MVI B,25H
+; MOV A,B
+; MVI B, 50H
+; ADD B
+; STA 2050H
+; HLT
+
+
+;ADD 2 NUMBERS OF 16 BIT
+; ORG 2000H
+; LXI B, 2050H
+; LXI D, 1525H
+; MOV A,C 
+; ADD E
+
+; STA 2031H
+; MOV A,B
+
+; ADC D
+; STA 2032H
+; HLT
+
+
+;SUB 2 8 BIT NUMBER
+; ORG 2000H
+; MVI B, 21H
+; MOV A,B
+; MVI B, 90H
+; SUB B
+; STA 2050H
+; HLT
+
+;MULTIPLY 2 NUMBERS OF 8 BIT
+; ORG 0000H
+; LXI H,2000H
+; MVI A,00H
+; MVI B, 05H
+; MVI C,00H
+
+; LOOP:
+;   ADD M
+;   JNC SKIP
+;   INR C
+; SKIP:
+;   DCR B
+;   JNZ LOOP
+
+; STA 2050H
+; MOV A,C
+; STA 2051H
+; HLT
+
+
+;Divide two numbers of 8 bit
+
+; LDA 2000H
+; MOV D, A
+; LDA 2001H
+; MOV E, A
+; MVI C,00H
+; MOV A,D
+; LOOP:
+;   SUB E
+;   JC END
+;   INR C
+;   JMP LOOP
+; END:
+;   ADD E
+;   STA 2020H
+;   MOV A,C
+;   STA 2021H
+; HLT
+
+
+
+;SORTING AN ARRAY IN ASC ORDER
+; ORG 0000H
+; MVI C,09H
+; LXI H,2000H
+; OUTER:
+;   LXI H,2000H
+;   MOV B,C
+; INNER:
+;   MOV A,M
+;   INX H    ;POINTING TO NEXT OBJECT
+;   CMP M
+;   JC SKIP
+;   MOV D,M
+;   MOV M,A
+;   DCX H
+;   MOV M,D
+;   INX H
+; SKIP:
+;   DCR B
+;   JNZ INNER
+;   DCR C
+;   JNZ OUTER
+; HLT
+
+
+;ADD THE  ELEMENTS STORED IN AN ARRAY
+; ORG 0000H
+; LXI H, 2000H
+; LXI D,0000H
+; MVI B,0AH
+
+; LOOP:
+;   MOV A,M
+;   ADD E
+;   MOV E,A
+;   JNC SKIP
+;   INR D
+
+; SKIP:
+;   INX H
+;   DCR B
+;   JNZ LOOP
+;   MOV A,E
+;   STA 2029H
+;   MOV A,D
+;   STA 2030H
+; HLT
+  
+
+
+;SQUARING OF ELEMENTS OF ARRAY
+; ORG 0000H
+; MVI C, 0AH
+; LXI H, 2000H
+
+; OUTER:
+;   MOV A,M
+;   MOV B,A
+;   DCR B
+; INNER:
+;   ADD M
+;   DCR B
+;   JNZ INNER
+;   MOV M,A
+;   INX H
+;   DCR C
+;   JNZ OUTER
+; HLT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

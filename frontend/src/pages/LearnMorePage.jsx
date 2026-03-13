@@ -1,143 +1,260 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
-import { Zap, Database, Globe, Fingerprint, TrendingUp, Cpu } from "lucide-react";
-
-// Helper component for the gradient black text effect
-const GradientText = ({ children, className = "" }) => (
-  <span
-    className={`bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 ${className}`}
-  >
-    {children}
-  </span>
-);
+import { QrCode, ShieldCheck, Database, Globe, FileCheck } from "lucide-react";
 
 const LearnMorePage = () => {
-  // --- Tailwind Classes for Apple-Inspired Light Theme ---
-  const LIGHT_BG = "bg-white";
-  const TEXT_DARK = "text-gray-900";
-  const TEXT_MUTED = "text-gray-600";
-  const BORDER_LIGHT = "border-gray-200";
 
-  // --- Components for the Learn More Page ---
+const Header = () => (
+<header className="py-6 border-b border-gray-200 bg-white sticky top-0 z-20">
+<div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
 
-  const Header = () => (
-    <header className={`py-6 border-b ${BORDER_LIGHT} sticky top-0 z-20 ${LIGHT_BG} backdrop-blur-sm bg-opacity-90`}>
-      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        <Link to="/" className={`text-xl font-bold tracking-tight ${TEXT_DARK} hover:opacity-80 transition duration-300`}>
-          QR Certify
-        </Link>
-        <Link 
-          to="/" 
-          className={`px-4 py-2 text-sm font-semibold rounded-full bg-gray-900 text-white hover:bg-gray-800 transition duration-300`}
-        >
-          Back to Home
-        </Link>
-      </div>
-    </header>
-  );
+<h1 className="text-2xl md:text-3xl font-bold text-blue-600 tracking-tight">
+DCAVE
+</h1>
 
-  const IntroSection = () => (
-    <section className={`py-32 ${LIGHT_BG} text-center`}>
-      <div className="max-w-4xl mx-auto px-6">
-        <h1 className={`text-6xl md:text-8xl font-extrabold mb-6 tracking-tighter`}>
-          <GradientText className="block leading-tight">
-            The Future of Trust is Here.
-          </GradientText>
-        </h1>
-        <p className={`text-2xl md:text-3xl ${TEXT_MUTED} max-w-2xl mx-auto font-light leading-relaxed`}>
-          Explore the technology, security, and benefits that make QR Certify the global standard for digital credential validation.
-        </p>
-      </div>
-    </section>
-  );
+<Link
+to="/"
+className="px-4 py-2 text-sm font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
+>
+Back to Home
+</Link>
 
-  const DetailGrid = () => (
-    <section className={`py-32 bg-gray-50 border-t ${BORDER_LIGHT}`}>
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-20">
-          <h2 className={`text-4xl md:text-6xl font-extrabold mb-4 tracking-tighter`}>
-            <GradientText>
-              Engineered for Integrity
-            </GradientText>
-          </h2>
-          <p className={`text-xl ${TEXT_MUTED} max-w-3xl mx-auto font-light`}>
-            A deep dive into the core technical specifications that ensure reliability and eliminate fraud.
-          </p>
-        </div>
+</div>
+</header>
+);
 
-        <div className="grid md:grid-cols-3 gap-12">
-          <DetailCard 
-            icon={<Zap className="w-8 h-8 text-gray-800" />}
-            title="Real-Time Verification"
-            description="Our low-latency API infrastructure processes authentication requests globally in less than 50 milliseconds, providing instant results."
-          />
-          <DetailCard 
-            icon={<Database className="w-8 h-8 text-gray-800" />}
-            title="Decentralized Records"
-            description="Credentials are stored using a secure, distributed ledger model, preventing single points of failure and protecting data permanence."
-          />
-          <DetailCard 
-            icon={<Fingerprint className="w-8 h-8 text-gray-800" />}
-            title="Cryptographic Signature"
-            description="Each document is digitally signed by the issuing authority, making tampering immediately detectable and traceable."
-          />
-          <DetailCard 
-            icon={<Globe className="w-8 h-8 text-gray-800" />}
-            title="Zero-Downtime Scaling"
-            description="Built on modern cloud architecture, the platform automatically scales to handle millions of verification requests simultaneously."
-          />
-          <DetailCard 
-            icon={<TrendingUp className="w-8 h-8 text-gray-800" />}
-            title="Audit-Ready Compliance"
-            description="Comprehensive logging and immutable audit trails ensure compliance with industry-specific regulatory requirements globally."
-          />
-          <DetailCard 
-            icon={<Cpu className="w-8 h-8 text-gray-800" />}
-            title="Cross-Platform APIs"
-            description="Seamless integration with existing HR, educational, and employer systems via robust and well-documented REST APIs."
-          />
-        </div>
-      </div>
-    </section>
-  );
 
-  const DetailCard = ({ icon, title, description }) => (
-    <div className={`p-8 rounded-2xl bg-white border ${BORDER_LIGHT} shadow-lg hover:shadow-xl transition duration-500 ease-out transform hover:-translate-y-1`}>
-      <div className={`p-4 inline-flex items-center justify-center h-16 w-16 rounded-xl bg-gray-100/80 mb-6 shadow-inner`}>
-        {icon}
-      </div>
-      <h3 className={`text-xl md:text-2xl font-semibold mb-3 tracking-tight`}>
-        <GradientText>
-          {title}
-        </GradientText>
-      </h3>
-      <p className={`text-base ${TEXT_MUTED} leading-relaxed font-light`}>{description}</p>
-    </div>
-  );
+/* ================= SYSTEM FLOW ================= */
 
-  const Footer = () => (
-    <footer className={`${LIGHT_BG} py-12 border-t ${BORDER_LIGHT} text-center ${TEXT_MUTED}`}>
-      <p className="text-sm">
-        © {new Date().getFullYear()} QR Certify. All rights reserved.
-      </p>
-      <div className="flex justify-center gap-4 mt-2">
-        <Link to="/privacy" className={`text-sm hover:${TEXT_DARK} transition font-medium`}>Privacy Policy</Link>
-        <span className="text-gray-400">|</span>
-        <Link to="/support" className={`text-sm hover:${TEXT_DARK} transition font-medium`}>Support</Link>
-      </div>
-    </footer>
-  );
+const SystemFlow = () => (
+<section className="py-24 bg-white">
 
-  return (
-    <div className="font-sans antialiased">
-      <Header />
-      <main>
-        <IntroSection />
-        <DetailGrid />
-      </main>
-      <Footer />
-    </div>
-  );
+<div className="max-w-6xl mx-auto px-6">
+
+<h2 className="text-3xl font-bold text-gray-900 text-center mb-16">
+DCAVE Verification Flow
+</h2>
+
+<div className="grid md:grid-cols-3 gap-10 items-center text-center">
+
+<div className="p-8 border border-gray-200 rounded-xl">
+<h3 className="font-semibold text-gray-900 mb-2">
+Institution
+</h3>
+<p className="text-sm text-gray-600">
+Creates and issues a digital certificate to students or professionals.
+</p>
+</div>
+
+<div className="p-8 border border-blue-200 rounded-xl bg-blue-50">
+<h3 className="font-semibold text-blue-700 mb-2">
+Blockchain Network
+</h3>
+<p className="text-sm text-gray-600">
+Certificate hash stored permanently on decentralized blockchain ledger.
+</p>
+</div>
+
+<div className="p-8 border border-gray-200 rounded-xl">
+<h3 className="font-semibold text-gray-900 mb-2">
+Verifier
+</h3>
+<p className="text-sm text-gray-600">
+Employers instantly validate credentials using QR verification.
+</p>
+</div>
+
+</div>
+
+</div>
+</section>
+);
+
+
+
+/* ================= TIMELINE ================= */
+
+const Step = ({number,title}) => (
+<div className="flex items-center gap-6">
+
+<div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+{number}
+</div>
+
+<div className="h-[2px] flex-1 bg-gray-200"></div>
+
+<h3 className="text-gray-900 font-medium">
+{title}
+</h3>
+
+</div>
+);
+
+const HowItWorks = () => (
+<section className="py-24 bg-gray-50 border-t border-gray-200">
+
+<div className="max-w-5xl mx-auto px-6">
+
+<h2 className="text-3xl font-bold text-gray-900 text-center mb-20">
+How DCAVE Works
+</h2>
+
+<div className="space-y-12">
+
+<Step number="01" title="Institution issues certificate" />
+<Step number="02" title="Certificate hash generated" />
+<Step number="03" title="Hash stored on blockchain" />
+<Step number="04" title="QR code embedded in certificate" />
+<Step number="05" title="Verifier scans QR code" />
+<Step number="06" title="Blockchain confirms authenticity" />
+
+</div>
+
+</div>
+
+</section>
+);
+
+
+
+/* ================= SECURITY ================= */
+
+const SecurityCard = ({icon,title}) => (
+<div className="border border-gray-200 rounded-xl p-6 text-center">
+
+<div className="w-12 h-12 bg-blue-50 text-blue-600 mx-auto mb-4 rounded-lg flex items-center justify-center">
+{icon}
+</div>
+
+<p className="text-gray-800 font-medium">
+{title}
+</p>
+
+</div>
+);
+
+const SecurityArchitecture = () => (
+<section className="py-24 bg-white border-t border-gray-200">
+
+<div className="max-w-6xl mx-auto px-6">
+
+<h2 className="text-3xl font-bold text-gray-900 text-center mb-16">
+Security Architecture
+</h2>
+
+<div className="grid md:grid-cols-4 gap-8">
+
+<SecurityCard icon={<FileCheck size={22}/>} title="Certificate Data" />
+<SecurityCard icon={<Database size={22}/>} title="Cryptographic Hash" />
+<SecurityCard icon={<ShieldCheck size={22}/>} title="Blockchain Ledger" />
+<SecurityCard icon={<QrCode size={22}/>} title="QR Verification" />
+
+</div>
+
+</div>
+
+</section>
+);
+
+
+
+/* ================= USE CASES ================= */
+
+const UseCaseCard = ({icon,title}) => (
+<div className="border border-gray-200 rounded-xl p-6">
+
+<div className="text-blue-600 mb-3">
+{icon}
+</div>
+
+<p className="text-gray-800 font-medium">
+{title}
+</p>
+
+</div>
+);
+
+const UseCases = () => (
+<section className="py-24 bg-gray-50 border-t border-gray-200">
+
+<div className="max-w-6xl mx-auto px-6">
+
+<h2 className="text-3xl font-bold text-gray-900 text-center mb-16">
+Use Cases
+</h2>
+
+<div className="grid md:grid-cols-3 gap-8">
+
+<UseCaseCard icon={<FileCheck size={22}/>} title="University Certificates" />
+<UseCaseCard icon={<Globe size={22}/>} title="Employer Verification" />
+<UseCaseCard icon={<QrCode size={22}/>} title="Online Certifications" />
+
+</div>
+
+</div>
+
+</section>
+);
+
+
+
+/* ================= CTA ================= */
+
+const CTA = () => (
+<section className="py-24 bg-white border-t border-gray-200 text-center">
+
+<h2 className="text-3xl font-bold text-gray-900">
+Verify Certificates Instantly
+</h2>
+
+<p className="text-gray-600 mt-4">
+Use DCAVE blockchain verification system to validate credentials securely.
+</p>
+
+<Link
+to="/login"
+className="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+>
+Verify Certificate
+</Link>
+
+</section>
+);
+
+
+
+/* ================= FOOTER ================= */
+
+const Footer = () => (
+<footer className="py-10 border-t border-gray-200 text-center text-gray-500 text-sm">
+© {new Date().getFullYear()} DCAVE — Decentralized Certificate Verification Engine
+</footer>
+);
+
+
+
+return (
+<div className="font-sans">
+
+<Header/>
+
+<main>
+
+<SystemFlow/>
+<HowItWorks/>
+<SecurityArchitecture/>
+<UseCases/>
+<CTA/>
+
+</main>
+
+<Footer/>
+
+</div>
+);
+
 };
 
 export default LearnMorePage;
+

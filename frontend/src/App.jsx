@@ -17,7 +17,7 @@ function App() {
     <>
     
         <Routes>
-          <Route path="/" element={<Main />} />
+          <Route path="/" element={<Main/>} />
           <Route path="/issue" element={<Template />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify" element={<Verify />} />

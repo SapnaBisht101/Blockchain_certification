@@ -45,7 +45,6 @@ const handleDownloadPDF = async (qrCodeImage,qrCodeId,setLoading,showMessage,cer
     const fileName = `${certData.name.replace(/\s+/g, "_")}_Certificate_${qrCodeId}.pdf`;
     pdf.save(fileName);
 
-    showMessage("✅ Certificate downloaded ");
   } catch (error) {
     console.error("PDF generation failed:", error);
     showMessage("❌ PDF generation failed. Please try again.");
