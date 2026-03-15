@@ -6,11 +6,17 @@ import { QrCode, ShieldCheck, Database, Globe, FileCheck } from "lucide-react";
 const LearnMorePage = () => {
 
 const Header = () => (
-<header className="py-6 border-b border-gray-200 bg-white sticky top-0 z-20">
+<header className="py-4 border-b border-gray-200 bg-white sticky top-0 z-20">
 <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
 
-<h1 className="text-2xl md:text-3xl font-bold text-blue-600 tracking-tight">
-DECIVE
+<h1 className="flex justify-center gap-4 items-center">
+  <div className="w-12 h-12 flex items-center justify-center rounded-lg  ">
+              <img src="pnglogo.png" />
+            </div>
+
+            <span className="font-semibold text-blue-600 text-2xl tracking-tight">
+              DECIVE
+            </span>
 </h1>
 
 <Link
@@ -235,7 +241,7 @@ const Footer = () => (
 
 
 return (
-<div className="font-sans">
+<div className="font-sans w-full">
 
 <Header/>
 

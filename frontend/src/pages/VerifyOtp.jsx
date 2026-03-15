@@ -37,9 +37,9 @@ const VerifyOtp = () => {
 
 
   return (
-    <div className="w-screen min-h-screen flex justify-center items-center bg-gray-50 p-6">
-      <form onSubmit={handleVerify} className="max-w-md w-full p-8 rounded-2xl bg-white shadow-md border">
-        <h2 className="text-2xl font-bold mb-3">Verify your email</h2>
+    <div className="w-screen min-h-screen flex justify-center items-center bg-blue-50 p-6">
+      <form onSubmit={handleVerify} className="max-w-md w-full p-8 rounded-2xl bg-white shadow-md border border-blue-400">
+        <h2 className="text-2xl text-blue-600 flex gap-4 items-center font-semibold mb-3"><img src="pnglogo.png" alt="" className="h-10 w-10" />Verify your email</h2>
         <p className="text-sm text-gray-600 mb-4">Enter the OTP we sent to <strong>{email || "(no email provided)"}</strong></p>
 
         {status && (
@@ -48,22 +48,22 @@ const VerifyOtp = () => {
           </div>
         )}
 
-        <label className="block text-sm font-medium text-gray-700 mb-2">OTP</label>
+        <label className="block text-sm font-medium text-blue-500 mb-2">OTP</label>
         <input
           value={otp}
           onChange={(e) => setOtp(e.target.value)}
           required
           placeholder="Enter the OTP"
-          className="w-full px-4 py-3 rounded-md border border-gray-200 mb-4"
+          className="w-full px-4 py-3 rounded-md border border-blue-200 mb-4"
         />
 
-        <button type="submit" disabled={isLoading} className="w-full py-3 rounded-md bg-gray-900 text-white font-semibold">
+        <button type="submit" disabled={isLoading} className="w-full py-3 rounded-md bg-blue-600 text-white border border-blue-600 hover:bg-white hover:text-blue-600 duration-300 font-semibold">
           {isLoading ? "Verifying..." : "Verify OTP"}
         </button>
 
 
         <div className="mt-4 text-sm text-center">
-          <Link to="/register" className="text-gray-600 hover:underline">Back to Register</Link>
+          <Link to="/register" className="text-blue-700 hover:underline">Back to Register</Link>
         </div>
       </form>
     </div>

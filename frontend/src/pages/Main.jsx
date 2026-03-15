@@ -40,7 +40,7 @@ const HeroSection = () => (
 
         {/* BRAND */}
 
-        <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight leading-tight">
+        <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight flex leading-tight">
 
           <span className="text-gray-900">
             DE
@@ -48,6 +48,10 @@ const HeroSection = () => (
 
           <span className="text-blue-600">
             CIVE
+          </span>
+
+          <span className="">
+            <img src="pnglogo.png" alt=""  className="h-24 ml-4"/>
           </span>
 
         </h1>

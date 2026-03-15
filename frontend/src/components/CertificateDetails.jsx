@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Tempelete from "./Tempelate.jsx"; // adjust path
-import handleDownloadPDF from "./Downloadpdf.js"; // adjust path
+import Tempelete from "./Tempelate.jsx";
+import handleDownloadPDF from "./Downloadpdf.js";
+import { ArrowLeft, Download, Loader2, Award } from "lucide-react";
 
 const CertificateDetails = () => {
-  console.log("i am certi-details page ");
-  
   const location = useLocation();
   const navigate = useNavigate();
-
-  const certificate = location.state?.cert;  
+  const certificate = location.state?.cert;
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -21,14 +19,15 @@ const CertificateDetails = () => {
 
   if (!certificate) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-3">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="bg-white p-10 rounded-2xl shadow-xl text-center">
+          <h2 className="text-xl font-semibold text-red-600 mb-4">
             No Certificate Data Found
           </h2>
+
           <button
             onClick={() => navigate("/issuer")}
-            className="px-5 py-2 bg-indigo-600 text-white rounded-lg"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg"
           >
             Back to Dashboard
           </button>
@@ -37,9 +36,6 @@ const CertificateDetails = () => {
     );
   }
 
-  // Convert certificate object into certData format required by Template
-  console.log(certificate);
-  
   const certData = {
     name: certificate.recipientName,
     certificateTitle: certificate.certificateTitle,
@@ -52,51 +48,81 @@ const CertificateDetails = () => {
     logoImage: certificate.logoImage,
     signatureImage: certificate.signatureImage,
   };
-  console.log(certData);
-  
+
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Certificate Preview</h1>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-gray-300 rounded-lg"
-        >
-          ← Back
-        </button>
+    <div className="min-h-screen w-full bg-slate-100">
+      {/* FLOATING HEADER */}
+      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          {/* LEFT : APP BRAND */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 flex items-center justify-center rounded-lg  ">
+              <img src="pnglogo.png" />
+            </div>
+
+            <span className="font-semibold text-blue-600 text-2xl tracking-tight">
+              DECIVE
+            </span>
+          </div>
+
+          {/* RIGHT ACTIONS */}
+          <div className="flex items-center gap-3">
+            {/* DOWNLOAD */}
+            <button
+              onClick={() =>
+                handleDownloadPDF(
+                  certificate.qrCodeImage,
+                  certificate.qrCodeId,
+                  setLoading,
+                  showMessage,
+                  certData,
+                )
+              }
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  Generating
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  Download
+                </>
+              )}
+            </button>
+
+            {/* BACK BUTTON */}
+            <button
+              onClick={() => navigate(-1)}
+              className="group flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition"
+            >
+              {" "}
+              <ArrowLeft
+                size={16}
+                className="transition-transform duration-200 group-hover:-translate-x-1"
+              />
+              <span className="text-sm font-medium text-gray-700">Back</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Template Preview */}
-      <div className="overflow-auto bg-white p-4 rounded-xl shadow-lg">
-        <Tempelete
-          certData={certData}
-          qrCodeImage={certificate.qrCodeImage}
-          qrCodeId={certificate.qrCodeId}
-        />
-      </div>
+      {/* CERTIFICATE PREVIEW STAGE */}
 
-      {/* Download Section */}
-      <div className="text-center mt-8">
-        <button
-          onClick={() =>
-            handleDownloadPDF(
-              certificate.qrCodeImage,
-              certificate.qrCodeId,
-              setLoading,
-              showMessage,
-              certData
-            )
-          }
-          className="px-8 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition"
-        >
-          {loading ? "Generating PDF..." : "Download Certificate"}
-        </button>
+      <div className="w-full flex justify-center ">
+        {/* A4 CONTAINER */}
+        <div className="lg:w-2/3 max-w-7xl flex justify-center">
+          <Tempelete
+            certData={certData}
+            qrCodeImage={certificate.qrCodeImage}
+            qrCodeId={certificate.qrCodeId}
+          />
+        </div>
 
         {message && (
-          <p className="mt-3 text-sm font-medium text-gray-700">
-            {message}
-          </p>
+          <p className="text-center mt-6 text-sm text-gray-600">{message}</p>
         )}
       </div>
     </div>
