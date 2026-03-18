@@ -48,7 +48,7 @@ const useDragAndDrop = (onDrop) => {
 
 const CertificateGenerator = () => {
   const { showMessage } = useMessage();
-const navigate= useNavigate()
+  const navigate = useNavigate();
   const location = useLocation();
   const issuerDetails = location.state;
   console.log(issuerDetails);
@@ -68,9 +68,9 @@ const navigate= useNavigate()
     issuerTitle: issuerDetails?.issuerTitle || "Director of Training",
     institutionName: issuerDetails?.institutionName || "Institution Name",
     completionDate: initialDate,
-    certificateTitle: "CERTIFICATE OF ACHIEVEMENT",
+    certificateTitle: "ACHIEVEMENT",
     certificateDescription:
-      "For outstanding dedication and successful completion of the prestigious program in",
+      "outstanding dedication and successful completion of the prestigious program",
     logoImage: issuerDetails?.institutionLogo || null,
     signatureImage: issuerDetails?.signatureImage || null,
     backgroundImage: null,
@@ -211,160 +211,165 @@ const navigate= useNavigate()
       <div className="w-full max-w-7xl flex flex-col lg:flex-row lg:space-x-8">
         {/* Left Column: Controls (Smaller/Fixed Width on large screens) */}
         {/* Left Column: Controls */}
-<div className="lg:w-1/3 w-full bg-white border border-gray-200 rounded-2xl shadow-sm p-6 mb-6 lg:mb-0 lg:sticky lg:top-10 lg:h-fit">
+        <div className="lg:w-1/3 w-full bg-white border border-gray-200 rounded-2xl shadow-sm p-6 mb-6 lg:mb-0 lg:sticky lg:top-10 lg:h-fit">
+          {/* Header */}
+          <div className="flex gap-4 mb-4 items-center justify-center">
+            <img src="pnglogo.png" alt="" className="h-16 w-16" />
+            <div className="border-b border-gray-100">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Issue Certificate
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">DECIVE Certificate</p>
+            </div>
+            <button
+              onClick={() => navigate(-1)}
+              className="group flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition"
+            >
+              {" "}
+              <ArrowLeft
+                size={16}
+                className="transition-transform duration-200 group-hover:-translate-x-1"
+              />
+              <span className="text-sm font-medium text-gray-700">Back</span>
+            </button>
+          </div>
 
-  {/* Header */}
- <div className="flex gap-4 mb-4 items-center justify-center">
-  <img src="pnglogo.png" alt="" className="h-16 w-16" />
-   <div className="border-b border-gray-100">
-    <h2 className="text-xl font-semibold text-gray-900">
-      Issue Certificate
-    </h2>
-    <p className="text-sm text-gray-500 mt-1">
-      DECIVE Certificate 
-    </p>
-  </div>
-   <button
-                      onClick={() => navigate(-1)}
-                      className="group flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition"
-                    >
-                      {" "}
-                      <ArrowLeft
-                        size={16}
-                        className="transition-transform duration-200 group-hover:-translate-x-1"
-                      />
-                      <span className="text-sm font-medium text-gray-700">
-                        Back
-                      </span>
-                    </button>
- </div>
+          {/* Issuer Info */}
+          <div className="mb-6 space-y-1 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg border">
+            <p>
+              <span className="font-semibold text-gray-800">Issuer:</span>{" "}
+              {certData.issuerName}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-800">Role:</span>{" "}
+              {certData.issuerTitle}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-800">Institution:</span>{" "}
+              {certData.institutionName}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-800">
+                Verifier Email:
+              </span>{" "}
+              {verifieremail}
+            </p>
+          </div>
 
-  {/* Issuer Info */}
-  <div className="mb-6 space-y-1 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg border">
-    <p><span className="font-semibold text-gray-800">Issuer:</span> {certData.issuerName}</p>
-    <p><span className="font-semibold text-gray-800">Role:</span> {certData.issuerTitle}</p>
-    <p><span className="font-semibold text-gray-800">Institution:</span> {certData.institutionName}</p>
-    <p><span className="font-semibold text-gray-800">Verifier Email:</span> {verifieremail}</p>
-  </div>
+          {/* Student Email */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Student Email
+            </label>
 
-  {/* Student Email */}
-  <div className="mb-6">
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      Student Email
-    </label>
+            <input
+              type="text"
+              value={studentemail}
+              onChange={(e) => setstudentemail(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="student@example.com"
+            />
 
-    <input
-      type="text"
-      value={studentemail}
-      onChange={(e) => setstudentemail(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      placeholder="student@example.com"
-    />
+            <button
+              onClick={fetchStudentDetails}
+              disabled={!studentemail || loading}
+              className="mt-3 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              Fetch Student Details
+            </button>
 
-    <button
-      onClick={fetchStudentDetails}
-      disabled={!studentemail || loading}
-      className="mt-3 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50"
-    >
-      Fetch Student Details
-    </button>
+            <p className="text-xs text-gray-500 mt-2">
+              Recipient:{" "}
+              <span className="font-medium text-gray-700">{certData.name}</span>
+            </p>
+          </div>
 
-    <p className="text-xs text-gray-500 mt-2">
-      Recipient: <span className="font-medium text-gray-700">{certData.name}</span>
-    </p>
-  </div>
+          {/* Certificate Fields */}
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Course / Program
+              </label>
+              <input
+                type="text"
+                name="courseName"
+                value={certData.courseName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-  {/* Certificate Fields */}
-  <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Certificate of
+              </label>
+              <input
+                type="text"
+                name="certificateTitle"
+                value={certData.certificateTitle}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Course / Program
-      </label>
-      <input
-        type="text"
-        name="courseName"
-        value={certData.courseName}
-        onChange={handleChange}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Completion Date
+              </label>
+              <input
+                type="text"
+                name="completionDate"
+                value={certData.completionDate}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Certificate Title
-      </label>
-      <input
-        type="text"
-        name="certificateTitle"
-        value={certData.certificateTitle}
-        onChange={handleChange}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                name="certificateDescription"
+                value={certData.certificateDescription}
+                onChange={handleChange}
+                rows="3"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          </div>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Completion Date
-      </label>
-      <input
-        type="text"
-        name="completionDate"
-        value={certData.completionDate}
-        onChange={handleChange}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+          {/* Action Buttons */}
+          <div className="space-y-3 border-t pt-5">
+            <button
+              onClick={handleGenerateQrCode}
+              disabled={loading || qrCodeImage}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              {qrCodeImage
+                ? `Issued ✓ (${qrCodeId})`
+                : loading
+                  ? "Generating..."
+                  : "Issue Certificate"}
+            </button>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Description
-      </label>
-      <textarea
-        name="certificateDescription"
-        value={certData.certificateDescription}
-        onChange={handleChange}
-        rows="3"
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-      />
-    </div>
-
-  </div>
-
-  {/* Action Buttons */}
-  <div className="space-y-3 border-t pt-5">
-
-    <button
-      onClick={handleGenerateQrCode}
-      disabled={loading || qrCodeImage}
-      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50"
-    >
-      {qrCodeImage
-        ? `Issued ✓ (${qrCodeId})`
-        : loading
-        ? "Generating..."
-        : "Issue Certificate"}
-    </button>
-
-    <button
-      onClick={() =>
-        handleDownloadPDF(
-          qrCodeImage,
-          qrCodeId,
-          setLoading,
-          showMessage,
-          certData
-        )
-      }
-      disabled={loading || !qrCodeImage}
-      className="w-full py-3 border border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold rounded-lg transition disabled:opacity-50"
-    >
-      {loading ? "Generating PDF..." : "Download Certificate"}
-    </button>
-
-  </div>
-
-</div>
+            <button
+              onClick={() =>
+                handleDownloadPDF(
+                  qrCodeImage,
+                  qrCodeId,
+                  setLoading,
+                  showMessage,
+                  certData,
+                )
+              }
+              disabled={loading || !qrCodeImage}
+              className="w-full py-3 border border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              {loading ? "Generating PDF..." : "Download Certificate"}
+            </button>
+          </div>
+        </div>
 
         {/* Right Column: Certificate Preview (Larger/Flexible Width) */}
         <div className="lg:w-2/3 w-full flex justify-center">

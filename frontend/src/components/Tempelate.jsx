@@ -34,7 +34,7 @@ const InstitutionHeader = ({ logo, name }) => (
         letterSpacing: "1px",
         margin: 0,
         fontFamily: "Playfair Display, serif",
-       color:"#175ffc "
+        color: "#175ffc ",
       }}
     >
       {name}
@@ -53,7 +53,7 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
         padding: "18mm",
         backgroundSize: "cover",
         backgroundPosition: "center",
-        backgroundColor:"white",
+        backgroundColor: "white",
         fontFamily: "Inter, sans-serif",
         boxShadow: "0 4px 25px rgba(0,0,0,0.15)",
         borderRadius: "8px",
@@ -109,18 +109,30 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
 
           <h1
             style={{
+              fontSize: "32px",
+              fontWeight: "600",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              margin: "0",
+              fontFamily: "Inter, serif",
+              color: "black",
+            }}
+          >
+            Certificate of
+          </h1>
+          <h1
+            style={{
               fontSize: "48px",
               fontWeight: "900",
               textTransform: "uppercase",
               letterSpacing: "6px",
               margin: "0",
               fontFamily: "Playfair Display, serif",
-              color:"#175ffc"
+              color: "#175ffc",
             }}
           >
             {certData.certificateTitle}
           </h1>
-
         </div>
 
         {/* BODY */}
@@ -129,7 +141,6 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
             style={{
               fontSize: "20px",
               color: "#175ffc99",
-              fontStyle: "italic",
               marginBottom: "10px",
               fontFamily: "Inter, sans-serif",
             }}
@@ -142,7 +153,6 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
               fontSize: "46px",
               fontWeight: "800",
               color: "#0f172a",
-              borderBottom: "4px solid #3b82f6",
               display: "inline-block",
               padding: "0 15px 5px 15px",
               margin: "0",
@@ -155,6 +165,18 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
 
           <p
             style={{
+              fontSize: "16px",
+              color: "blue",
+              maxWidth: "80%",
+              margin: "20px auto 0 auto",
+              lineHeight: "1.6",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            for
+          </p>
+          <p
+            style={{
               fontSize: "18px",
               color: "#1e293b",
               maxWidth: "80%",
@@ -165,6 +187,18 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
           >
             {certData.certificateDescription}
           </p>
+           <p
+            style={{
+              fontSize: "16px",
+              color: "blue",
+              maxWidth: "80%",
+              margin: "20px auto 0 auto",
+              lineHeight: "1.6",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            in
+          </p>
 
           <h3
             style={{
@@ -174,7 +208,7 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
               textTransform: "uppercase",
               letterSpacing: "3px",
               fontFamily: "Playfair Display, serif",
-              color:"#175ffc"
+              color: "#175ffc",
             }}
           >
             {certData.courseName}
@@ -199,11 +233,10 @@ const Tempelate = ({ certData, qrCodeImage, qrCodeId }) => {
                 fontSize: "14px",
                 color: "#475569",
                 marginBottom: "5px",
-                textTransform: "uppercase",
                 letterSpacing: "1px",
               }}
             >
-              Date of Completion
+              DATE OF COMPLETION
             </p>
 
             <p
