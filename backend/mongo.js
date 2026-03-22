@@ -49,6 +49,7 @@ const CertificateSchema = new mongoose.Schema({
   certificateDescription: { type: String },
   completionDate: { type: Date, required: true },
   issuedAt: { type: Date, default: Date.now },
+  qrImage:{type:String,required:true},
   certificateHash: { type: String, default: null }, // Jo hash blockchain pe bheja
   txHash: { type: String, default: null },          // Blockchain Transaction ID (Proof)
   isOnChain: { type: Boolean, default: false }, // blockchain pe hai ya nhi 

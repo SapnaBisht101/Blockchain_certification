@@ -2,7 +2,7 @@ import "./App.css";
 import {Routes, Route } from "react-router-dom";
 import Register from "./pages/Register";
 import Verify from "./pages/issuer/Verify";
-import Login from "./pages/Login";
+import Login from "./pages/Login";  
 import Main from "./pages/Main"
 import AdminPage from "./pages/admin/Admin";
 import StudentPage from "./pages/student/Student";
@@ -12,6 +12,7 @@ import LearnMorePage from "./pages/LearnMorePage";
 import CertificateDetails from "./components/CertificateDetails";
 import VerifyOtp from "./pages/VerifyOtp";
 import ForgetPassword from "./pages/ForgetPassword";
+import UnifiedVerify from "./pages/issuer/UnifiedVerify";
 function App() {
   return (
     <>
@@ -20,7 +21,7 @@ function App() {
           <Route path="/" element={<Main/>} />
           <Route path="/issue" element={<Template />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/verify" element={<Verify />} />
+          <Route path="/verify" element={<UnifiedVerify/>} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element = {<AdminPage/>}/>
           <Route path="/student" element = {<StudentPage/>}/>

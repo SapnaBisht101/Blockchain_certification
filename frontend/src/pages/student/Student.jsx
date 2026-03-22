@@ -166,8 +166,10 @@ const StudentPage = () => {
         const res = await axios.get(
           `${API_BASE_URL}/student/certificates/${studentInfo.id}`
         );
-
+        
         const fetched = res.data.certificates || [];
+        console.log(fetched);
+        
         setCertificates(sortCertificates(fetched));
       } catch (err) {
         console.error("Certificate load error:", err);

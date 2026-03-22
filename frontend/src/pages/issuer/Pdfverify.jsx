@@ -3,8 +3,12 @@ import jsQR from "jsqr";
 import { Upload, FileText, Loader, CheckCircle, XCircle, Download, AlertCircle, LogIn } from "lucide-react";
 
 // Set up PDF.js worker
+// import * as pdfjsLib from "pdfjs-dist";
+// pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
+
 import * as pdfjsLib from "pdfjs-dist";
-pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min?url";
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const ExtractQRFromPDF = ({verify}) => {
   const [loading, setLoading] = useState(false);

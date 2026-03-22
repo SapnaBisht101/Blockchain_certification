@@ -48,6 +48,8 @@ const CertificateDetails = () => {
     logoImage: certificate.logoImage,
     signatureImage: certificate.signatureImage,
   };
+  console.log(certificate);
+  
 
   return (
     <div className="min-h-screen w-full bg-slate-100">
@@ -116,7 +118,7 @@ const CertificateDetails = () => {
         <div className="lg:w-2/3 max-w-7xl flex justify-center">
           <Tempelete
             certData={certData}
-            qrCodeImage={certificate.qrCodeImage}
+            qrCodeImage={certificate.qrImage}
             qrCodeId={certificate.qrCodeId}
           />
         </div>

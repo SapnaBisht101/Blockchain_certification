@@ -58,7 +58,8 @@ const CertificateGenerator = () => {
     month: "long",
     day: "numeric",
   });
-
+  console.log(initialDate);
+  
   // Initialize certData with defaults/issuerDetails
   const [certData, setCertData] = useState({
     name: "Recipient Name",

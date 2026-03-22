@@ -36,7 +36,6 @@ const Issuer = () => {
   const [totalCertificates, setTotalCertificates] = useState(0);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [showPending, setShowPending] = useState(false);
-
   const [issuerProfile, setIssuerProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,10 +54,10 @@ const Issuer = () => {
           setIssuerProfile(profileData);
 
           const certis = await axios.get(
-            `http://localhost:4000/issuer/${details.id}/certificates`,
+            `http://localhost:4000/issuer/${details.id}/certificates`
           );
           const certificatesArray = certis.data.data || [];
-
+          console.log(certificatesArray); 
           setIssuedCertificates(certificatesArray);
           setTotalCertificates(certificatesArray.length);
         }
@@ -96,7 +95,7 @@ const Issuer = () => {
       setIsLoading(true);
 
       const res = await axios.get(
-        `http://localhost:4000/issuer/request/pending/${details.id}`,
+        `http://localhost:4000/issuer/request/pending/${details.id}`
       );
 
       setPendingRequests(res.data.requests || []);
@@ -139,12 +138,25 @@ const Issuer = () => {
     hover:bg-blue-50 hover:border-blue-400
 hover:text-blue-600    transition-all duration-200"
           >
-           <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-100 text-gray-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition">
+            <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-100 text-gray-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition">
               <Award className="w-5 h-5" />
             </div>
             <span className="flex-1 text-left">Certificates</span>
           </button>
 
+          {/* Pending */}
+          <button
+            onClick={handlePendingClick}
+            className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg
+    border border-gray-200 text-gray-700 font-medium
+    hover:bg-blue-50 hover:border-blue-400
+hover:text-blue-600    transition-all duration-200"
+          >
+            <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-100 text-gray-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition">
+              <User className="w-5 h-5" />
+            </div>
+            <span className="flex-1 text-left">Pending Requests</span>
+          </button>
           {/* Issue New */}
           <button
             onClick={() => handleIssueNew()}
@@ -171,20 +183,6 @@ hover:text-blue-600    transition-all duration-200"
               <User className="w-5 h-5" />
             </div>
             <span className="flex-1 text-left">Verify</span>
-          </button>
-
-          {/* Pending */}
-          <button
-            onClick={handlePendingClick}
-            className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg
-    border border-gray-200 text-gray-700 font-medium
-    hover:bg-blue-50 hover:border-blue-400
-hover:text-blue-600    transition-all duration-200"
-          >
-            <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-100 text-gray-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition">
-              <User className="w-5 h-5" />
-            </div>
-            <span className="flex-1 text-left">Pending Requests</span>
           </button>
         </nav>
 
@@ -324,7 +322,7 @@ hover:text-blue-600    transition-all duration-200"
                         This Month
                       </span>
                     </div>
-                   <p className="text-4xl font-bold  justify-center bg items-center flex flex-1 tracking-tight text-blue-600">
+                    <p className="text-4xl font-bold  justify-center bg items-center flex flex-1 tracking-tight text-blue-600">
                       {
                         issuedCertificates.filter((c) => {
                           const certDate = new Date(c.issuedAt);
@@ -336,7 +334,7 @@ hover:text-blue-600    transition-all duration-200"
                         }).length
                       }
                     </p>
-                   <p className="text-xs justify-center flex p-3 text-white bg-blue-500 rounded-b-2xl font-medium">
+                    <p className="text-xs justify-center flex p-3 text-white bg-blue-500 rounded-b-2xl font-medium">
                       Recently Issued
                     </p>
                   </div>
@@ -393,86 +391,81 @@ hover:text-blue-600    transition-all duration-200"
             </div>
           )}
 
-       {/* Certificates Grid View */}
-{!isLoading && !showPending && viewMode === "grid" && (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {filteredCertificates.map((cert) => (
-      <div
-        key={cert._id}
-        className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-xl transition-all duration-300"
-      >
-        {/* Top Accent */}
-        <div className="h-3 bg-blue-500"></div>
+          {/* Certificates Grid View */}
+          {!isLoading && !showPending && viewMode === "grid" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCertificates.map((cert) => (
+                <div
+                  key={cert._id}
+                  className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-xl transition-all duration-300"
+                >
+                  {/* Top Accent */}
+                  <div className="h-3 bg-blue-500"></div>
 
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-5">
-            <div className="flex items-center gap-3">
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 bg-blue-500 rounded-lg flex items-center justify-center text-white font-semibold">
+                          {cert.recipientName?.charAt(0)}
+                        </div>
 
-              <div className="w-11 h-11 bg-blue-500 rounded-lg flex items-center justify-center text-white font-semibold">
-                {cert.recipientName?.charAt(0)}
-              </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-black">
+                            {cert.recipientName}
+                          </h3>
 
-              <div>
-                <h3 className="text-sm font-semibold text-black">
-                  {cert.recipientName}
-                </h3>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(cert.issuedAt)}
+                          </p>
+                        </div>
+                      </div>
 
-                <p className="text-xs text-gray-500">
-                  {formatDate(cert.issuedAt)}
-                </p>
-              </div>
+                      <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded-lg transition">
+                        <MoreVertical className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+
+                    {/* Course */}
+                    <div className="mb-5">
+                      <p className="text-sm text-gray-600 mb-1">Course</p>
+
+                      <p className="font-medium text-gray-900 line-clamp-2">
+                        {cert.courseName}
+                      </p>
+                    </div>
+
+                    {/* Certificate ID */}
+                    <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
+                      <span>ID</span>
+
+                      <span className="font-mono text-gray-700">
+                        {cert._id?.slice(-8)}
+                      </span>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-full">
+                        <CheckCircle className="w-3 h-3" />
+                        Active
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          navigate(`/view-certificate`, { state: { cert } })
+                        }
+                        className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            <button className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 rounded-lg transition">
-              <MoreVertical className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
-
-          {/* Course */}
-          <div className="mb-5">
-            <p className="text-sm text-gray-600 mb-1">
-              Course
-            </p>
-
-            <p className="font-medium text-gray-900 line-clamp-2">
-              {cert.courseName}
-            </p>
-          </div>
-
-          {/* Certificate ID */}
-          <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
-            <span>ID</span>
-
-            <span className="font-mono text-gray-700">
-              {cert._id?.slice(-8)}
-            </span>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-
-            <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-full">
-              <CheckCircle className="w-3 h-3" />
-              Active
-            </span>
-
-            <button
-              onClick={() =>
-                navigate(`/view-certificate`, { state: { cert } })
-              }
-              className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              <Eye className="w-4 h-4" />
-              View
-            </button>
-
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+          )}
 
           {/* List View */}
           {!isLoading && !showPending && viewMode === "list" && (
@@ -567,81 +560,75 @@ hover:text-blue-600    transition-all duration-200"
             </div>
           )}
 
-         {!isLoading && showPending && (
-  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          {!isLoading && showPending && (
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">
+                  Pending Certificate Requests
+                </h2>
 
-    {/* Header */}
-    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-      <h2 className="text-sm font-semibold text-gray-800">
-        Pending Certificate Requests
-      </h2>
-
-      <span className="text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
-        {pendingRequests.length} Requests
-      </span>
-    </div>
-
-    {/* Content */}
-    <div className="divide-y divide-gray-100">
-
-      {pendingRequests.length === 0 ? (
-        <div className="py-12 text-center text-gray-500 text-sm">
-          No pending requests
-        </div>
-      ) : (
-        pendingRequests.map((req) => (
-          <div
-            key={req._id}
-            className="flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition"
-          >
-            {/* Left Side */}
-            <div className="flex items-start gap-4">
-
-              {/* Avatar */}
-              <div className="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-                {req.studentId?.name?.charAt(0)}
+                <span className="text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
+                  {pendingRequests.length} Requests
+                </span>
               </div>
 
-              {/* Info */}
-              <div>
-                <p className="font-semibold text-gray-900">
-                  {req.studentId?.name}
-                </p>
+              {/* Content */}
+              <div className="divide-y divide-gray-100">
+                {pendingRequests.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500 text-sm">
+                    No pending requests
+                  </div>
+                ) : (
+                  pendingRequests.map((req) => (
+                    <div
+                      key={req._id}
+                      className="flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition"
+                    >
+                      {/* Left Side */}
+                      <div className="flex items-start gap-4">
+                        {/* Avatar */}
+                        <div className="w-11 h-11 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                          {req.studentId?.name?.charAt(0)}
+                        </div>
 
-                <p className="text-sm text-gray-500">
-                  {req.studentId?.email}
-                </p>
+                        {/* Info */}
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {req.studentId?.name}
+                          </p>
 
-                <p className="text-sm text-gray-600 mt-1">
-                  {req.message}
-                </p>
+                          <p className="text-sm text-gray-500">
+                            {req.studentId?.email}
+                          </p>
+
+                          <p className="text-sm text-gray-600 mt-1">
+                            {req.message}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action */}
+                      <button
+                        onClick={() => {
+                          navigate("/issue", {
+                            state: {
+                              ...issuerProfile,
+                              studentEmail: req.studentId?.email,
+                              remove_request: req._id,
+                            },
+                          });
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+                      >
+                        Issue Certificate
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
-
             </div>
-
-            {/* Action */}
-            <button
-              onClick={() => {
-                navigate("/issue", {
-                  state: {
-                    ...issuerProfile,
-                    studentEmail: req.studentId?.email,
-                    remove_request: req._id,
-                  },
-                });
-              }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
-            >
-              Issue Certificate
-            </button>
-
-          </div>
-        ))
-      )}
-
-    </div>
-  </div>
-)}
+          )}
         </main>
       </div>
     </div>
