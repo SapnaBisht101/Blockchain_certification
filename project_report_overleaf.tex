@@ -1,0 +1,433 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue,
+  pdftitle={Blockchain-Based Academic Certificate Verification with QR, OCR, Database and Hardware Integration},
+  pdfauthor={Student Name}
+}
+
+\setstretch{1.2}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\fancyhead[L]{Academic Certificate Verification Report}
+\fancyhead[R]{DECIVE Project}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+\title{\textbf{Blockchain-Based Academic Certificate Verification System}\\
+\large A Three-Step Verification Framework Using QR, OCR, Database Validation and Blockchain Integrity}
+\author{
+Student Name \\
+Department / Institution Name \\
+\texttt{student.email@example.com}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+Academic certificate fraud remains a persistent issue because traditional verification is slow, partly manual, and dependent on central institutional availability. This report presents a practical certificate verification framework implemented as a web-based system that combines QR-based identification, database verification, OCR-assisted certificate inspection, and blockchain-backed integrity validation. The proposed system supports three operational modes: manual verification, QR-only verification, and complete certificate verification. In the manual mode, a user directly verifies a certificate against the blockchain using a QR identifier or certificate hash. In the QR-only mode, live camera scanning or QR image upload is used to recover certificate payload data, which is then validated against the institutional database and subsequently against blockchain-stored certificate hashes. In the complete certificate mode, the full certificate image or PDF is processed locally to extract OCR text and QR payload; the OCR text is compared against all QR fields on the client side, after which the database and blockchain checks are performed.
+
+The report also compares the proposed system with published research papers and related patents in academic credential verification. Based on the cited abstracts and patent descriptions, most prior systems emphasize blockchain issuance, digital signature validation, wallet-based sharing, or QR-assisted lookup, but fewer provide a lightweight, layered verification pipeline that separately addresses visible certificate content, institutional record consistency, and immutable ledger integrity within a single user workflow. The report argues that the novelty of the present system lies in this staged verification design, the hybrid use of frontend OCR pre-screening with backend trust validation, and its practical suitability for deployment with commodity hardware such as mobile phones, webcams, printers, kiosks, and embedded edge devices.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+The verification of academic credentials is a critical requirement for universities, employers, government agencies, and certification bodies. Paper certificates can be forged, edited, copied, or re-issued without a reliable chain of trust. Traditional verification mechanisms often rely on manual email confirmation, physical seals, or institution-hosted web portals. These approaches suffer from several limitations: they are slow, institution-dependent, costly to scale, and vulnerable when the issuing organization is unavailable or when the visible certificate content has been tampered with.
+
+Blockchain has emerged as a promising technology for credential verification because it provides immutability, traceability, and distributed trust. At the same time, QR codes have become a practical method for encoding verifiable certificate identifiers and metadata. OCR adds another layer by checking whether the visible text on a printed or scanned certificate is consistent with the underlying encoded payload. However, many systems in the literature focus on only one or two of these components rather than integrating all of them into a simple, operational verification pipeline.
+
+This report documents a project that aims to solve this problem through a practical three-step verification framework:
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Manual verification}: direct blockchain validation from QR ID or certificate hash.
+\item \textbf{QR-only verification}: QR recovery followed by database and blockchain validation.
+\item \textbf{Complete certificate verification}: OCR-vs-QR checking, followed by database and blockchain validation.
+\end{enumerate}
+
+The implementation is intended to be usable in realistic deployment environments using web browsers, smartphone cameras, uploaded images, uploaded PDFs, and standard blockchain-backed backend services.
+
+\section{Problem Statement}
+The main problem addressed by this project is the lack of a robust, layered, and user-friendly certificate verification workflow that simultaneously answers three distinct questions:
+\begin{itemize}[leftmargin=1.5em]
+\item Is the \textbf{visible certificate text} consistent with the encoded certificate data?
+\item Is the \textbf{encoded certificate data} consistent with the institutional database record?
+\item Is the \textbf{database record} consistent with the immutable blockchain proof?
+\end{itemize}
+
+Without these three questions being checked separately, different attack scenarios remain possible. For example, if only a QR code is verified, a forged certificate image with a copied QR code may still appear believable to a human viewer. If only the database is checked, tampering in downstream documents may not be detected. If only the blockchain hash is checked, a verifier may not know whether the printed certificate content corresponds to the encoded certificate or to the stored record.
+
+\section{Objectives}
+The major objectives of the project are:
+\begin{enumerate}[leftmargin=1.5em]
+\item To design a certificate verification system that supports manual, QR-only, and full-certificate verification.
+\item To encode certificate data in QR format and generate a blockchain-stored certificate hash during issuance.
+\item To implement database-side verification of QR payload fields against stored certificate records.
+\item To implement blockchain-side verification of certificate hashes for integrity checking.
+\item To implement OCR-based certificate inspection in the frontend so that OCR-vs-QR comparison happens locally.
+\item To provide a clean verification dashboard that shows explicit step-wise status such as OCR Verified, DB Verified, and Blockchain Verified.
+\item To study and compare the system against relevant research papers and patents.
+\item To evaluate how such a system can be integrated with commodity hardware and future edge devices.
+\end{enumerate}
+
+\section{System Overview}
+The system is built as a web application with a frontend verification interface and a backend service connected to a database and a blockchain smart contract. During certificate issuance, a certificate record is created, a QR payload is generated, a certificate hash is computed, and the hash is written to the blockchain. During verification, the system follows one of three workflows depending on the input mode.
+
+\subsection{Verification Modes}
+\textbf{Manual verification} accepts a QR ID, QR payload, or certificate hash. It is intended for cases where a verifier already has the identifier and wants a direct integrity check. This mode performs blockchain verification only.
+
+\textbf{QR-only verification} is intended for live camera scanning or QR image upload. The QR payload is decoded and sent for database verification and blockchain verification.
+
+\textbf{Complete certificate verification} is intended for certificate image or PDF upload. In this mode, the QR payload is extracted from the certificate, OCR text is extracted locally from the visual certificate, and the OCR text is checked against all QR data fields on the frontend. Only if the local OCR step passes does the system invoke the backend for database and blockchain verification.
+
+\subsection{Three-Step Logic}
+The final verification logic can be summarized as:
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Step 1: OCR Verified}: all QR field values, after normalization to lowercase cleaned text, must be present in the OCR text.
+\item \textbf{Step 2: DB Verified}: the QR payload must match the authoritative institutional certificate record in the database.
+\item \textbf{Step 3: Blockchain Verified}: the certificate hash recomputed from the database record must match the hash stored on-chain.
+\end{itemize}
+
+\section{Methodology and Architecture}
+\subsection{Certificate Issuance}
+At issuance time, the system:
+\begin{enumerate}[leftmargin=1.5em]
+\item receives certificate metadata such as student name, student email, course name, issuer name, institution name, completion date, and certificate title;
+\item generates a unique QR code identifier;
+\item computes a deterministic certificate hash based on selected normalized fields;
+\item writes the certificate hash to the blockchain via a smart contract;
+\item stores the full certificate record in the institutional database;
+\item generates a QR code containing the certificate payload.
+\end{enumerate}
+
+\subsection{Frontend OCR Prescreening}
+For complete certificate verification, OCR is performed on the frontend using browser-based processing. The OCR text is cleaned to reduce common OCR errors such as line breaks, punctuation noise, repeated spacing, and typical symbol confusion. The QR payload is also normalized. Each required QR field value is then checked for containment within the OCR text. If every field is found, the local OCR step passes; otherwise, it fails without contacting the backend.
+
+This design choice has two advantages:
+\begin{enumerate}[leftmargin=1.5em]
+\item It reduces unnecessary backend calls for obviously mismatched or tampered certificates.
+\item It makes the first verification step independent from server-side database access, which matches the logical role of OCR inspection.
+\end{enumerate}
+
+\subsection{Backend Trust Validation}
+Once the OCR step passes or when the verifier uses QR-only mode, the backend performs:
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Database validation}: checks whether the QR payload corresponds to the stored institutional record.
+\item \textbf{Blockchain validation}: recomputes the expected certificate hash from trusted stored data and compares it against the blockchain record.
+\end{enumerate}
+
+\subsection{Status Reporting}
+The verification panel presents a per-step decision instead of one monolithic result. This design is important because it identifies the specific trust boundary at which a failure occurred:
+\begin{itemize}[leftmargin=1.5em]
+\item OCR failure suggests visible document inconsistency.
+\item Database failure suggests mismatch between QR payload and institutional record.
+\item Blockchain failure suggests integrity or ledger mismatch.
+\end{itemize}
+
+\section{Detailed Working of the Proposed System}
+\subsection{Manual Verification}
+Manual verification is used when the verifier has a QR ID, a raw QR JSON payload, or the certificate hash. In this mode, the verifier directly queries the blockchain-backed backend route. This is the fastest path for institutions or technical operators who need a ledger-level check without OCR or camera scanning.
+
+\subsection{QR-Only Verification}
+In QR-only verification, the system obtains QR payload data from either:
+\begin{itemize}[leftmargin=1.5em]
+\item live webcam scanning; or
+\item uploaded QR image or screenshot.
+\end{itemize}
+The QR payload is then verified against the database record and finally against the blockchain record.
+
+\subsection{Complete Certificate Verification}
+This is the most complete verification path and is intended for scanned certificates, screenshots, or certificate PDFs. The system:
+\begin{enumerate}[leftmargin=1.5em]
+\item extracts QR payload from the uploaded certificate;
+\item extracts OCR text from the certificate image or PDF;
+\item normalizes OCR text and QR values to lowercase;
+\item checks whether every QR field value appears in the OCR text;
+\item if the OCR step passes, sends the QR payload to the backend for DB and blockchain validation.
+\end{enumerate}
+
+The institution logo and signature image are intentionally excluded from OCR verification because they are visual elements rather than dependable textual evidence.
+
+\section{Comparison with Existing Research Papers}
+\textbf{Important note:} The comparisons below are based on the published abstracts, visible algorithm descriptions, and openly available metadata of the cited papers. Where a feature is inferred rather than explicitly stated, that inference is indicated in the discussion.
+
+\begin{longtable}{p{3.2cm}p{3.4cm}p{3.2cm}p{4.8cm}}
+\toprule
+\textbf{Source} & \textbf{Core Idea} & \textbf{Verification Style} & \textbf{Difference from the Present System} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Source} & \textbf{Core Idea} & \textbf{Verification Style} & \textbf{Difference from the Present System} \\
+\midrule
+\endhead
+\textbf{Kabashi et al. (2024)} \newline \emph{Trustworthy Verification of Academic Credentials through Blockchain Technology} & Three-layer application with data, blockchain, and application layers. & Primarily architecture-driven blockchain verification. & Similar in layering, but the present system adds an operational frontend OCR prescreening step for full certificate images/PDFs before database and blockchain validation. \\
+
+\textbf{Cardenas-Quispe and Pacheco (2025)} \newline \emph{Blockchain ensuring academic integrity with a degree verification prototype} & Hybrid blockchain prototype with QR-coded degree lookup and Byzantine-style approval. & QR-linked blockchain-backed title lookup and signature process. & Their focus is on degree issuance architecture and distributed node validation. The present system is more verification-workflow oriented and explicitly separates visible document text checking, database consistency, and blockchain integrity. \\
+
+\textbf{Decentralized certificate issuance and verification system using Ethereum blockchain technology} (2025) & Ethereum-based decentralized certificate issuance and validation for multiple sectors. & General issuance and blockchain validation. & Broad multi-sector orientation; the present system is narrower but stronger in document-level verification because it checks OCR text against QR payload and then continues to database and blockchain layers. \\
+
+\textbf{A Consortium Blockchain-Based Secure and Trusted Electronic Portfolio Management Scheme} (2022) & Uses QR-extracted portfolio information, public key, and signature for certificate verification. & QR data compared to visible certificate details, then key/signature validation. & This is one of the closest works. However, the present system differs by combining a practical QR payload match, institutional database verification, and blockchain hash verification within one staged user flow. Also, the present system supports complete certificate OCR handling for image/PDF inputs. \\
+
+\textbf{Educational Blockchain: A Secure Degree Attestation and Verification Traceability Architecture for Higher Education Commission} (2021) & Hyperledger-based architecture for degree attestation and traceability. & Process and provenance oriented. & The cited work emphasizes institutional traceability architecture. The present system is lighter-weight for verifier interaction and supports image/PDF certificate checking directly from a browser. \\
+
+\textbf{The Decentralized Smart Contract Certificate System Utilizing Ethereum Blockchain Technology} (2023) & Smart-contract-based certificate system for issuance, management, verification, and revocation. & Contract-centric verification. & Strong in smart contract management, but the abstract does not indicate a local OCR-vs-QR prescreening layer. The present project adds that visible-content verification stage. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Discussion of Research Gap}
+The literature strongly supports blockchain-backed issuance and verification, but most papers emphasize one or more of the following:
+\begin{itemize}[leftmargin=1.5em]
+\item blockchain architecture and node design,
+\item digital signatures and public key validation,
+\item wallet-based credential exchange,
+\item consortium or permissioned trust structures,
+\item QR code lookup for blockchain records.
+\end{itemize}
+
+The main research gap addressed by the present work is the verifier-side workflow gap: a real verifier often has a \emph{photo}, \emph{PDF}, \emph{screenshot}, \emph{live QR}, or \emph{manual ID}, and the system must adapt to that evidence type. The novelty is therefore not just ``using blockchain'', but defining a \emph{mode-aware verification pipeline} with explicit local and backend trust boundaries.
+
+\section{Comparison with Related Patents}
+\textbf{Important note:} The patent comparison is based on publicly visible patent abstracts, descriptions, and claim-oriented summaries, not on a legal infringement analysis.
+
+\begin{longtable}{p{3cm}p{4cm}p{5.2cm}p{3.4cm}}
+\toprule
+\textbf{Patent} & \textbf{Main Claimed Direction} & \textbf{Observed Focus} & \textbf{Difference from Present System} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Patent} & \textbf{Main Claimed Direction} & \textbf{Observed Focus} & \textbf{Difference from Present System} \\
+\midrule
+\endhead
+\textbf{EP3817320B1} \newline Blockchain-based system for issuing and validating certificates (granted, published 04 January 2023) & Public-permissioned blockchain, repository, access control logic, encrypted resources, off-chain services. & Strong emphasis on public-permissioned blockchain plus access control and certificate repository management. & The present project is less about access-control architecture and more about practical verifier workflows. Its distinguishing contribution is the three-mode, three-step verification path with local OCR prescreening and browser-driven certificate inspection. \\
+
+\textbf{US12348634B1} \newline Framework for storage and verification of academic credentials on blockchain technology (granted, published 29 July 2025) & ECDSA-based signing and verification, credential equivalency, encryption, blockchain plus database platform. & Strong emphasis on digital signature validation, accreditation, equivalency, and cryptographic proof. & The current project does not attempt broad equivalency management. Instead, it focuses on fast operational authenticity checks over QR, OCR, database, and blockchain integrity. \\
+
+\textbf{US20220318757A1} \newline System for verifying education and employment of a candidate via a blockchain network (application, published 06 October 2022) & Credential wallet, sharing by QR/URL, IPFS-linked documents, candidate-employer-university exchange. & Strong emphasis on credential wallets, transfer, sharing, and resume-style aggregation. & The present system is not wallet-centric. It is verifier-centric. The novelty is in direct document inspection and staged trust validation rather than credential portfolio exchange. \\
+
+\textbf{KR101539451B1} \newline OCR-based method and system for examining genuineness of issued documents & OCR recognition of a printed code on an issued document to retrieve and show a copy file. & OCR-assisted authenticity workflow. & This patent is OCR-oriented, but it does not center a blockchain-backed, database-plus-ledger verification chain with QR payload matching. The present system integrates OCR prescreening into a broader decentralized verification stack. \\
+
+\textbf{US10419225B2} \newline Validating documents via blockchain & General blockchain document validation with metadata and digital signature context. & Generic blockchain-based document validation. & The present system specializes the idea for academic certificates and adds QR payload encoding, database verification, and frontend OCR checking for complete certificate images and PDFs. \\
+\bottomrule
+\end{longtable}
+
+\section{Novelty of the Proposed Work}
+Based on the cited research papers and patents, the novelty of the present project can be stated as follows:
+
+\subsection{Mode-Aware Verification}
+Most prior art discusses certificate issuance or verification as a single pipeline. The present system explicitly supports three evidence-driven modes:
+\begin{itemize}[leftmargin=1.5em]
+\item manual identifier/hash verification,
+\item QR-only verification,
+\item complete certificate verification from image or PDF.
+\end{itemize}
+This is a practical novelty because the verifier's input modality directly influences what can be trusted and what must be checked.
+
+\subsection{Frontend OCR Prescreening Before Trusted Lookup}
+The project performs OCR-vs-QR consistency checking on the frontend for full-certificate uploads. This means the visible document can be screened locally before backend trust resources are used. This is a functional distinction from systems that rely entirely on backend services for every verification attempt.
+
+\subsection{Separated Trust Boundaries}
+The project separates:
+\begin{itemize}[leftmargin=1.5em]
+\item visible certificate consistency,
+\item institutional record consistency,
+\item blockchain integrity.
+\end{itemize}
+This separation is valuable because it tells the verifier \emph{why} a certificate failed. Prior work often reports only a final valid/invalid outcome.
+
+\subsection{Practical Browser-to-Blockchain Workflow}
+The system combines browser-side PDF/image handling, QR decoding, OCR extraction, backend database lookup, and blockchain verification in a single operational interface suitable for non-expert users. This practical integration is, in my assessment, the strongest novelty claim of the project.
+
+\section{Hardware Integration Possibilities}
+The proposed system is software-first, but it is well suited for hardware-assisted deployment.
+
+\subsection{Smartphones}
+A smartphone can serve as:
+\begin{itemize}[leftmargin=1.5em]
+\item a QR scanner,
+\item a certificate image capture device,
+\item a mobile browser client for OCR and verification,
+\item a field verification tool for employers or admission offices.
+\end{itemize}
+
+\subsection{Webcams and Desktop Terminals}
+In university administrative offices, reception desks, or exam cells, a webcam-connected desktop can provide live QR verification at low cost. Uploaded PDFs and scanned certificates can be processed through the browser without specialized equipment.
+
+\subsection{Document Scanners and Multi-function Printers}
+Existing institutional scanners can digitize paper certificates into image or PDF form. These files can be fed directly into the complete certificate verification workflow.
+
+\subsection{Raspberry Pi or Edge Kiosk}
+A Raspberry Pi-based kiosk with a camera, touchscreen, and network connection can provide a self-service verification station in a university campus, examination office, or employer verification desk. A kiosk could:
+\begin{itemize}[leftmargin=1.5em]
+\item capture QR or certificate images,
+\item run the frontend interface in kiosk mode,
+\item print a verification receipt,
+\item optionally log verification events to an audit server.
+\end{itemize}
+
+\subsection{Thermal or Laser Printing Integration}
+At issuance time, the system can be connected to printer infrastructure so that each printed certificate carries:
+\begin{itemize}[leftmargin=1.5em]
+\item a QR code,
+\item a human-readable certificate ID,
+\item optional issue timestamp,
+\item optional verifier URL.
+\end{itemize}
+
+\subsection{Possible IoT Extensions}
+Future hardware extensions may include NFC tags, secure elements, hardware security modules (HSMs), or tamper-evident issuing kiosks for high-assurance academic environments.
+
+\section{Advantages of the Proposed System}
+The system offers the following advantages:
+\begin{itemize}[leftmargin=1.5em]
+\item layered trust rather than a single yes/no output,
+\item practical support for live QR, image upload, PDF upload, and manual input,
+\item blockchain integrity without requiring every check to start at the blockchain,
+\item reduced unnecessary backend load through frontend OCR prescreening,
+\item clear support for revocation,
+\item suitability for browser-based and hardware-assisted deployments,
+\item traceability and tamper resistance.
+\end{itemize}
+
+\section{Limitations}
+Despite its strengths, the project has several limitations:
+\begin{enumerate}[leftmargin=1.5em]
+\item OCR quality still depends on image clarity, font quality, and scan quality.
+\item The current OCR rule is deterministic but simple: all QR field values must be found in OCR text. This may be strict for noisy scans or stylized layouts.
+\item Legacy certificates with insufficient QR payload fields may not support full-certificate verification as effectively as newly issued certificates.
+\item The present implementation appears oriented toward hash-based integrity rather than full privacy-preserving verifiable credentials.
+\item Large PDF/OCR workflows can increase client-side compute cost in weaker devices.
+\end{enumerate}
+
+\section{Future Work}
+Several future directions can significantly strengthen the project:
+
+\subsection{Semantic OCR Matching}
+Instead of exact text containment only, future versions can use approximate matching, token-level similarity, or layout-aware OCR validation to tolerate mild OCR noise.
+
+\subsection{W3C Verifiable Credentials and DIDs}
+The system can evolve from project-level credential verification toward standards-compliant decentralized identity and verifiable credentials.
+
+\subsection{Cross-Institution Interoperability}
+Multiple universities can be linked through a consortium ledger or interoperable smart contract schema so that a verifier can validate credentials from multiple issuers through one portal.
+
+\subsection{Privacy-Preserving Verification}
+Zero-knowledge proofs, selective disclosure, or privacy-preserving credential sharing can be added so that only required claims are revealed.
+
+\subsection{Revocation Transparency and Event Logging}
+The system can expose explicit revocation timelines, revocation proofs, and signed audit logs for institutional compliance.
+
+\subsection{Hardware-Secured Issuance}
+Private keys used for certificate issuance can be moved into HSMs or secure signing devices.
+
+\subsection{Offline and Edge Verification}
+Field verification kits can be developed for low-connectivity environments, with later synchronization to the institutional ledger.
+
+\subsection{Fraud Analytics}
+A future analytics layer can monitor repeated failed verifications, suspicious QR reuse, or anomalous certificate patterns.
+
+\section{Conclusion}
+This report presented a structured certificate verification framework that combines QR payloads, OCR-based visible content inspection, database record validation, and blockchain integrity verification. The system is practically useful because it distinguishes among different verification inputs and aligns the verification pipeline to the evidence available to the verifier. Manual verification directly serves blockchain integrity checks. QR-only verification provides a fast operational path for day-to-day validation. Complete certificate verification adds a document-level OCR prescreening step that checks whether the visible certificate text is consistent with QR-encoded data before backend trust validation is attempted.
+
+From the comparison with the existing literature and patents, it is clear that blockchain-based academic credential verification is already an active research and innovation area. Existing papers discuss layered blockchain architectures, QR-assisted certificate lookup, smart-contract-driven certificate services, and cryptographic signature validation. Existing patents cover public-permissioned certificate networks, signature-based credential platforms, wallet-centric sharing, and OCR-assisted authenticity mechanisms. However, the present project contributes a practical and verifier-oriented synthesis: a staged workflow that separately checks visible text, institutional record consistency, and immutable ledger integrity, while remaining deployable with standard web technologies and commodity hardware.
+
+In summary, the project is not merely another blockchain certificate application. Its practical novelty lies in the integration of frontend OCR prescreening, QR payload verification, database consistency checking, and blockchain integrity checking into a clean, operational workflow that can be extended toward institutional deployment, cross-institution interoperability, and hardware-assisted verification ecosystems.
+
+\newpage
+\begin{thebibliography}{99}
+
+\bibitem{kabashi2024}
+F. Kabashi, H. Snopce, A. Luma, and V. Neziri,
+\newblock ``Trustworthy Verification of Academic Credentials through Blockchain Technology,''
+\newblock \emph{International Journal of Online and Biomedical Engineering}, vol. 20, no. 9, pp. 51--64, 2024.
+\newblock DOI: \url{https://doi.org/10.3991/ijoe.v20i09.48999}
+\newblock Source: \url{https://www.researchgate.net/publication/381605578_Trustworthy_Verification_of_Academic_Credentials_through_Blockchain_Technology}
+
+\bibitem{cardenas2025}
+M. A. Cardenas-Quispe and A. Pacheco,
+\newblock ``Blockchain ensuring academic integrity with a degree verification prototype,''
+\newblock \emph{Scientific Reports}, vol. 15, article 9281, published 18 March 2025.
+\newblock DOI: \url{https://doi.org/10.1038/s41598-025-93913-6}
+\newblock Source: \url{https://www.nature.com/articles/s41598-025-93913-6}
+
+\bibitem{eth2025}
+``Decentralized certificate issuance and verification system using Ethereum blockchain technology,''
+\newblock \emph{Journal of Network and Computer Applications}, 2025.
+\newblock DOI: \url{https://doi.org/10.1016/j.jnca.2025.104190}
+\newblock Source: \url{https://www.sciencedirect.com/science/article/pii/S1084804525000876}
+
+\bibitem{portfolio2022}
+``A Consortium Blockchain-Based Secure and Trusted Electronic Portfolio Management Scheme,''
+\newblock \emph{Sensors}, vol. 22, no. 3, article 1271, 2022.
+\newblock Source: \url{https://www.mdpi.com/1424-8220/22/3/1271}
+
+\bibitem{educblockchain2021}
+``Educational Blockchain: A Secure Degree Attestation and Verification Traceability Architecture for Higher Education Commission,''
+\newblock \emph{Applied Sciences}, 2021.
+\newblock Source: \url{https://www.mdpi.com/1364306}
+
+\bibitem{smartcontract2023}
+``The Decentralized Smart Contract Certificate System Utilizing Ethereum Blockchain Technology,''
+\newblock \emph{Procedia Computer Science}, vol. 230, pp. 923--934, 2023.
+\newblock DOI: \url{https://doi.org/10.1016/j.procs.2023.12.035}
+\newblock Source: \url{https://www.sciencedirect.com/science/article/pii/S1877050923020252}
+
+\bibitem{ep3817320}
+EP3817320B1,
+\newblock ``Blockchain-based system for issuing and validating certificates,''
+\newblock European Patent Office, granted, published 04 January 2023.
+\newblock Source: \url{https://patents.google.com/patent/EP3817320B1/en}
+
+\bibitem{us12348634}
+US12348634B1,
+\newblock ``Framework for storage and verification of academic credentials on blockchain technology,''
+\newblock United States Patent, granted, published 29 July 2025.
+\newblock Source: \url{https://patents.google.com/patent/US12348634B1}
+
+\bibitem{us20220318757}
+US20220318757A1,
+\newblock ``System for verifying education and employment of a candidate via a blockchain network,''
+\newblock United States Patent Application, published 06 October 2022.
+\newblock Source: \url{https://patents.google.com/patent/US20220318757A1/en}
+
+\bibitem{kr101539451}
+KR101539451B1,
+\newblock ``A method and system of examining the genuineness of the issued document using optical character reader,''
+\newblock Korean Patent, published 2015.
+\newblock Source: \url{https://patents.google.com/patent/KR101539451B1/en}
+
+\bibitem{us10419225}
+US10419225B2,
+\newblock ``Validating documents via blockchain,''
+\newblock United States Patent, published 17 September 2019.
+\newblock Source: \url{https://patents.google.com/patent/US10419225B2/en}
+
+\end{thebibliography}
+
+\end{document}

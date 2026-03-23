@@ -18,25 +18,116 @@ import {
   Shield,
   Info,
   Hash,
+  CheckCircle2,
+  CircleDashed,
 } from "lucide-react";
 import jsQR from "jsqr";
 import { useMessage } from "../GlobalMessageProvider";
-
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
+const API_BASE = "http://localhost:4000/certificates";
+
+const STEP_LABELS = {
+  ocr_verified: "OCR Verified",
+  db_verified: "DB Verified",
+  blockchain_verified: "Blockchain Verified",
+};
+
+const STATUS_LABELS = {
+  VERIFIED: "Verified",
+  BLOCKCHAIN_FAILED: "Blockchain Check Failed",
+  QR_VERIFICATION_FAILED: "QR Verification Failed",
+  CERTIFICATE_VERIFICATION_FAILED: "Certificate Verification Failed",
+  ERROR: "Error",
+  INVALID: "Invalid",
+};
+
+const normalizeValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const cleanOCR = (text) =>
+  String(text || "")
+    .replace(/\r?\n/g, " ")
+    .replace(/¢/g, "c")
+    .replace(/!/g, "1")
+    .replace(/\b1D\b/g, "ID")
+    .replace(/\b0F\b/gi, "OF")
+    .replace(/\bT0\b/gi, "TO")
+    .replace(/\bPR0UDLY\b/gi, "PROUDLY")
+    .replace(/\bC0MPLETION\b/gi, "COMPLETION")
+    .replace(/\[\d+\]/g, "")
+    .replace(/[|—]/g, " ")
+    .replace(/\s*:\s*/g, ": ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizeTextBlock = (value) =>
+  normalizeValue(value)
+    .replace(/[^a-z0-9@\s./:-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const parseQrPayload = (rawData) => {
+  if (!rawData || typeof rawData !== "string") {
+    return { qrCodeId: "", payload: null };
+  }
+
+  try {
+    const parsed = JSON.parse(rawData);
+    return {
+      qrCodeId: String(parsed?.qrCodeId || "").trim(),
+      payload: parsed,
+    };
+  } catch {
+    const trimmed = rawData.trim();
+    return {
+      qrCodeId: trimmed,
+      payload: { qrCodeId: trimmed },
+    };
+  }
+};
+
+const buildExpectedOcrSegments = (qrPayload = {}) =>
+  [
+    { key: "certificateTitle", label: "Certificate Title", value: qrPayload.certificateTitle },
+    { key: "studentName", label: "Recipient", value: qrPayload.studentName },
+    { key: "studentEmail", label: "Student Email", value: qrPayload.studentEmail },
+    { key: "courseName", label: "Course", value: qrPayload.courseName },
+    { key: "issuerName", label: "Issuer", value: qrPayload.issuerName },
+    { key: "institutionName", label: "Institution", value: qrPayload.institutionName },
+  ]
+    .map((segment) => ({
+      ...segment,
+      normalizedValue: normalizeTextBlock(segment.value),
+    }))
+    .filter((segment) => segment.normalizedValue);
+
+const extractTextFromPdf = async (pdf) => {
+  const chunks = [];
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    chunks.push(textContent.items.map((item) => item.str).join(" "));
+  }
+  return chunks.join(" ");
+};
+
 export default function UnifiedVerify() {
   const { showMessage } = useMessage();
   const navigate = useNavigate();
-
   const [mode, setMode] = useState("idle");
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState("Authenticating...");
   const [certificate, setCertificate] = useState(null);
   const [error, setError] = useState("");
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [verificationDetails, setVerificationDetails] = useState(null);
+  const [verificationSteps, setVerificationSteps] = useState([]);
   const [scanProgress, setScanProgress] = useState("");
   const [pdfInfo, setPdfInfo] = useState(null);
   const videoRef = useRef(null);
@@ -47,11 +138,11 @@ export default function UnifiedVerify() {
     setError("");
     setVerificationStatus(null);
     setVerificationDetails(null);
+    setVerificationSteps([]);
   }, []);
 
   const preprocessImage = useCallback((imageData) => {
     const data = new Uint8ClampedArray(imageData.data);
-
     for (let i = 0; i < data.length; i += 4) {
       const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       const value = gray > 128 ? 255 : 0;
@@ -59,278 +150,416 @@ export default function UnifiedVerify() {
       data[i + 1] = value;
       data[i + 2] = value;
     }
-
-    return {
-      data,
-      width: imageData.width,
-      height: imageData.height,
-    };
+    return { data, width: imageData.width, height: imageData.height };
   }, []);
 
-  const verify = useCallback(
-    async (qrData) => {
-      if (!qrData || typeof qrData !== "string") {
-        showMessage("Invalid or unreadable QR code.", "error");
-        setError("Invalid QR code.");
+  const decodeQrFromImageData = useCallback(
+    (imageData) => {
+      const attempts = [imageData, preprocessImage(imageData)];
+      const inversionModes = ["dontInvert", "attemptBoth", "invertFirst"];
+      for (const candidate of attempts) {
+        for (const inversionMode of inversionModes) {
+          const code = jsQR(candidate.data, candidate.width, candidate.height, {
+            inversionAttempts: inversionMode,
+          });
+          if (code?.data) return code.data;
+        }
+      }
+      return null;
+    },
+    [preprocessImage],
+  );
+
+  const applyVerificationResult = useCallback(
+    (data, successMessage) => {
+      setError("");
+      setVerificationSteps(data.steps || []);
+      setVerificationDetails(data);
+      setVerificationStatus(data.status || (data.valid ? "VERIFIED" : "INVALID"));
+      if (data.valid && data.data) {
+        setCertificate(data.data);
+        showMessage(successMessage, "success");
+        return;
+      }
+      setCertificate(data.data || null);
+      setError(data.message || "Verification failed.");
+      showMessage(data.message || "Verification failed.", "error");
+    },
+    [showMessage],
+  );
+
+  const mergeVerificationResult = useCallback(
+    (initialSteps, data, successMessage) => {
+      const mergedSteps = [...initialSteps, ...(data.steps || [])];
+      setError("");
+      setVerificationSteps(mergedSteps);
+      setVerificationDetails({ ...data, steps: mergedSteps });
+      setVerificationStatus(data.status || (data.valid ? "VERIFIED" : "INVALID"));
+
+      if (data.valid && data.data) {
+        setCertificate(data.data);
+        showMessage(successMessage, "success");
         return;
       }
 
+      setCertificate(data.data || null);
+      setError(data.message || "Verification failed.");
+      showMessage(data.message || "Verification failed.", "error");
+    },
+    [showMessage],
+  );
+
+  const postVerification = useCallback(
+    async (path, body, successMessage) => {
       setLoading(true);
       resetVerificationState();
-
-      let qrCodeId = qrData;
-      let clientData = {};
-
       try {
-        const parsed = JSON.parse(qrData);
-        clientData = parsed;
-        qrCodeId = parsed.qrCodeId || qrData;
-      } catch {
-        clientData = { qrCodeId: qrData };
-        qrCodeId = qrData;
-      }
-
-      if (!qrCodeId?.trim()) {
-        showMessage("QR Code ID is missing or unreadable.", "error");
-        setError("Missing QR Code ID.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await fetch("http://localhost:4000/certificates/verify-data", {
+        const res = await fetch(`${API_BASE}${path}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ qrCodeId: qrCodeId.trim(), clientData }),
+          body: JSON.stringify(body),
         });
-
         let data;
         try {
           data = await res.json();
         } catch {
-          showMessage("Invalid server response. Verification failed.", "error");
-          setError("Server returned invalid JSON.");
-          setLoading(false);
-          return;
+          throw new Error("Invalid server response.");
         }
 
-        if (data.valid) {
-          showMessage("Authenticity Confirmed", "success");
-          setCertificate(data.data);
-          setVerificationStatus(data.status || "Verified");
-          setVerificationDetails(data.details || null);
-        } else {
-          setError(data.message || "Credential record not found in ledger.");
-          setVerificationStatus(data.status || "Invalid_ID");
-          showMessage(data.message || "Verification Failed", "error");
+        if (!res.ok && !data?.message) {
+          throw new Error(`Verification request failed with status ${res.status}.`);
         }
-      } catch {
-        setError("Network error. Connection to verification server failed.");
-        setVerificationStatus("Error");
-        showMessage("Network or server error. Could not verify.", "error");
+
+        applyVerificationResult(data, successMessage);
+      } catch (err) {
+        setError(err.message || "Network error. Connection to verification server failed.");
+        setVerificationStatus("ERROR");
+        showMessage(err.message || "Network or server error. Could not verify.", "error");
       } finally {
         setLoading(false);
+        setScanProgress("");
       }
     },
-    [resetVerificationState, showMessage],
+    [applyVerificationResult, resetVerificationState, showMessage],
   );
 
-  const extractVerifyableQRData = useCallback((rawData) => {
-    if (!rawData || typeof rawData !== "string") return null;
+  const postVerificationWithSteps = useCallback(
+    async (path, body, initialSteps, successMessage) => {
+      setLoading(true);
+      resetVerificationState();
+      setVerificationSteps(initialSteps);
+      try {
+        const res = await fetch(`${API_BASE}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error("Invalid server response.");
+        }
 
-    try {
-      const parsed = JSON.parse(rawData);
-      if (typeof parsed === "object" && parsed?.qrCodeId?.trim()) {
-        return parsed.qrCodeId.trim();
+        if (!res.ok && !data?.message) {
+          throw new Error(`Verification request failed with status ${res.status}.`);
+        }
+
+        mergeVerificationResult(initialSteps, data, successMessage);
+      } catch (err) {
+        setError(err.message || "Network error. Connection to verification server failed.");
+        setVerificationStatus("ERROR");
+        setVerificationDetails({ steps: initialSteps });
+        showMessage(err.message || "Network or server error. Could not verify.", "error");
+      } finally {
+        setLoading(false);
+        setScanProgress("");
       }
-    } catch {}
+    },
+    [mergeVerificationResult, resetVerificationState, showMessage],
+  );
 
-    const trimmed = rawData.trim();
-    if (!trimmed) return null;
-    return trimmed.length < 80 ? trimmed : null;
+  const verifyManual = useCallback(
+    async (manualInput) => {
+      if (!manualInput?.trim()) {
+        setError("Enter a QR ID, QR payload, or certificate hash.");
+        showMessage("Manual input is required.", "error");
+        return;
+      }
+      setLoadingLabel("Running direct blockchain verification...");
+      await postVerification("/verify-manual", { manualInput }, "Blockchain verification successful.");
+    },
+    [postVerification, showMessage],
+  );
+
+  const verifyQrOnly = useCallback(
+    async (qrData) => {
+      const parsed = parseQrPayload(qrData);
+      if (!parsed.qrCodeId) {
+        setError("QR Code ID is missing or unreadable.");
+        showMessage("Invalid or unreadable QR code.", "error");
+        return;
+      }
+      setLoadingLabel("Running database and blockchain checks...");
+      await postVerification("/verify-qr", { qrData }, "QR verification successful.");
+    },
+    [postVerification, showMessage],
+  );
+
+  const verifyOcrLocally = useCallback((qrData, rawText) => {
+    const parsed = parseQrPayload(qrData);
+    const qrPayload = parsed.payload || {};
+    const cleanedText = cleanOCR(rawText);
+    const normalizedOcrText = normalizeTextBlock(cleanedText);
+    const expectedSegments = buildExpectedOcrSegments(qrPayload);
+    const missingSegments = expectedSegments
+      .filter((segment) => !normalizedOcrText.includes(segment.normalizedValue))
+      .map((segment) => segment.label);
+
+    return {
+      name: "ocr_verified",
+      label: "OCR Verified",
+      passed: missingSegments.length === 0,
+      message:
+        missingSegments.length === 0
+          ? "All QR text values were found in the OCR text."
+          : "One or more QR text values were not found in the OCR text.",
+      details: {
+        expectedSegments: expectedSegments.map(({ key, label, value }) => ({ key, label, value })),
+        missingSegments,
+        rawOcrText: cleanedText,
+        ignoredVisualElements: ["signatureImage", "institutionLogo"],
+      },
+    };
   }, []);
 
-  const processPDF = async (file) => {
-    if (!file) return;
-
-    if (file.type !== "application/pdf") {
-      setError("Please upload a valid PDF file.");
-      showMessage("Please upload a valid PDF file.", "error");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError("PDF file is too large. Maximum size is 10MB.");
-      showMessage("PDF file is too large.", "error");
-      return;
-    }
-
-    setLoading(true);
-    resetVerificationState();
-    setPdfInfo(null);
-    setScanProgress("");
-
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-      setPdfInfo({
-        name: file.name,
-        pages: pdf.numPages,
-        size: `${(file.size / 1024).toFixed(2)} KB`,
-      });
-
-      const scales = [3.0, 2.5, 2.0, 1.5];
-      const inversionModes = ["dontInvert", "attemptBoth", "invertFirst"];
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        setScanProgress(`Scanning page ${i} of ${pdf.numPages}...`);
-        const page = await pdf.getPage(i);
-
-        for (const scale of scales) {
-          const viewport = page.getViewport({ scale });
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-
-          if (!context) continue;
-
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-
-          await page.render({ canvasContext: context, viewport }).promise;
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-          for (const inversionMode of inversionModes) {
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: inversionMode,
-            });
-
-            if (code) {
-              const verifyableData = extractVerifyableQRData(code.data);
-              if (verifyableData) {
-                setScanProgress("");
-                setLoading(false);
-                await verify(verifyableData);
-                return;
-              }
-            }
-          }
-
-          const processedImageData = preprocessImage(imageData);
-          for (const inversionMode of inversionModes) {
-            const code = jsQR(
-              processedImageData.data,
-              processedImageData.width,
-              processedImageData.height,
-              { inversionAttempts: inversionMode },
-            );
-
-            if (code) {
-              const verifyableData = extractVerifyableQRData(code.data);
-              if (verifyableData) {
-                setScanProgress("");
-                setLoading(false);
-                await verify(verifyableData);
-                return;
-              }
-            }
-          }
-        }
-      }
-
-      setError("No valid QR code detected. Try a clearer PDF or use camera scan.");
-      showMessage("No QR code detected in the PDF.", "error");
-    } catch {
-      setError("Failed to process the PDF document.");
-      showMessage("Failed to process the PDF document.", "error");
-    } finally {
-      setScanProgress("");
-      setLoading(false);
-    }
-  };
-
-  const processImage = (file) => {
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Please upload a valid image file.");
-      showMessage("Please upload a valid image file.", "error");
-      return;
-    }
-
-    setLoading(true);
-    resetVerificationState();
-
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.src = objectUrl;
-
-    img.onload = async () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      if (!ctx) {
-        setError("Image processing is unavailable in this browser.");
-        setLoading(false);
-        URL.revokeObjectURL(objectUrl);
+  const verifyCompleteCertificate = useCallback(
+    async ({ qrData, rawText }) => {
+      const parsed = parseQrPayload(qrData);
+      if (!parsed.qrCodeId) {
+        setError("Certificate QR is missing or unreadable.");
+        showMessage("Certificate QR is missing or unreadable.", "error");
         return;
       }
 
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const attempts = [imageData, preprocessImage(imageData)];
-      const inversionModes = ["dontInvert", "attemptBoth", "invertFirst"];
-
-      for (const candidateImage of attempts) {
-        for (const inversionMode of inversionModes) {
-          const code = jsQR(
-            candidateImage.data,
-            candidateImage.width,
-            candidateImage.height,
-            { inversionAttempts: inversionMode },
-          );
-
-          if (code) {
-            const verifyableData = extractVerifyableQRData(code.data);
-            if (verifyableData) {
-              URL.revokeObjectURL(objectUrl);
-              setLoading(false);
-              await verify(verifyableData);
-              return;
-            }
-          }
-        }
+      const ocrStep = verifyOcrLocally(qrData, rawText);
+      if (!ocrStep.passed) {
+        resetVerificationState();
+        setVerificationSteps([ocrStep]);
+        setVerificationDetails({ steps: [ocrStep] });
+        setVerificationStatus("CERTIFICATE_VERIFICATION_FAILED");
+        setError(ocrStep.message);
+        showMessage(ocrStep.message, "error");
+        return;
       }
 
-      setError("No valid QR code found in image.");
-      showMessage("No QR code detected in the image.", "error");
-      setLoading(false);
-      URL.revokeObjectURL(objectUrl);
-    };
+      setLoadingLabel("Running database and blockchain checks...");
+      await postVerificationWithSteps(
+        "/verify-qr",
+        { qrData },
+        [ocrStep],
+        "Certificate verification successful.",
+      );
+    },
+    [postVerificationWithSteps, resetVerificationState, showMessage, verifyOcrLocally],
+  );
 
-    img.onerror = () => {
-      setError("Image load failed.");
-      showMessage("Failed to load image.", "error");
-      setLoading(false);
-      URL.revokeObjectURL(objectUrl);
-    };
-  };
+  const runImageOcr = useCallback(async (file) => {
+    const { default: Tesseract } = await import("tesseract.js");
+    const result = await Tesseract.recognize(file, "eng", {
+      logger: ({ status }) => {
+        if (status) setScanProgress(`OCR: ${status}`);
+      },
+    });
+    return result.data?.text || "";
+  }, []);
+
+  const processQrImage = useCallback(
+    async (file) => {
+      if (!file?.type.startsWith("image/")) {
+        setError("Please upload a valid image file.");
+        showMessage("Please upload a valid image file.", "error");
+        return;
+      }
+
+      setLoading(true);
+      setLoadingLabel("Reading QR image...");
+      resetVerificationState();
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
+
+      img.onload = async () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setError("Image processing is unavailable in this browser.");
+          setLoading(false);
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const qrData = decodeQrFromImageData(imageData);
+        console.log("Qr-Code Data :" , qrData);
+        
+
+        URL.revokeObjectURL(objectUrl);
+        setLoading(false);
+
+        if (!qrData) {
+          setError("No valid QR code found in image.");
+          showMessage("No QR code detected in the image.", "error");
+          return;
+        }
+
+        await verifyQrOnly(qrData);
+      };
+
+      img.onerror = () => {
+        setError("Image load failed.");
+        showMessage("Failed to load image.", "error");
+        setLoading(false);
+        URL.revokeObjectURL(objectUrl);
+      };
+    },
+    [decodeQrFromImageData, resetVerificationState, showMessage, verifyQrOnly],
+  );
+
+  const processCertificateImage = useCallback(
+    async (file) => {
+      if (!file?.type.startsWith("image/")) {
+        setError("Please upload a valid image file.");
+        showMessage("Please upload a valid image file.", "error");
+        return;
+      }
+
+      setLoading(true);
+      setLoadingLabel("Extracting QR and OCR text from certificate image...");
+      resetVerificationState();
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
+
+      img.onload = async () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Image processing is unavailable in this browser.");
+
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const qrData = decodeQrFromImageData(imageData);
+          console.log("Qr-Code-Image-Data:",qrData);
+          
+          if (!qrData) throw new Error("No QR code detected in the certificate image.");
+
+          const ocrText = await runImageOcr(file);
+          console.log(ocrText);
+          
+          URL.revokeObjectURL(objectUrl);
+          setLoading(false);
+          await verifyCompleteCertificate({ qrData, rawText: ocrText });
+        } catch (err) {
+          URL.revokeObjectURL(objectUrl);
+          setLoading(false);
+          setError(err.message || "Failed to process certificate image.");
+          showMessage(err.message || "Failed to process certificate image.", "error");
+        }
+      };
+
+      img.onerror = () => {
+        setError("Image load failed.");
+        showMessage("Failed to load image.", "error");
+        setLoading(false);
+        URL.revokeObjectURL(objectUrl);
+      };
+    },
+    [decodeQrFromImageData, resetVerificationState, runImageOcr, showMessage, verifyCompleteCertificate],
+  );
+
+  const processCertificatePdf = useCallback(
+    async (file) => {
+      if (file?.type !== "application/pdf") {
+        setError("Please upload a valid PDF file.");
+        showMessage("Please upload a valid PDF file.", "error");
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        setError("PDF file is too large. Maximum size is 10MB.");
+        showMessage("PDF file is too large.", "error");
+        return;
+      }
+
+      setLoading(true);
+      setLoadingLabel("Extracting QR and text from PDF certificate...");
+      resetVerificationState();
+      setPdfInfo(null);
+      setScanProgress("");
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        setPdfInfo({
+          name: file.name,
+          pages: pdf.numPages,
+          size: `${(file.size / 1024).toFixed(2)} KB`,
+        });
+
+        const extractedText = await extractTextFromPdf(pdf);
+        let qrData = null;
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+          setScanProgress(`Scanning page ${pageNum} of ${pdf.numPages} for QR...`);
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.5 });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          if (!context) continue;
+
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: context, viewport }).promise;
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          qrData = decodeQrFromImageData(imageData);
+          console.log("Qr-Code-Image-Data:",qrData);
+          
+          if (qrData) break;
+        }
+
+        if (!qrData) throw new Error("No QR code detected in the PDF certificate.");
+
+        setLoading(false);
+        await verifyCompleteCertificate({ qrData, rawText: extractedText });
+      } catch (err) {
+        setLoading(false);
+        setError(err.message || "Failed to process the PDF document.");
+        showMessage(err.message || "Failed to process the PDF document.", "error");
+      } finally {
+        setScanProgress("");
+      }
+    },
+    [decodeQrFromImageData, resetVerificationState, showMessage, verifyCompleteCertificate],
+  );
 
   useEffect(() => {
-    if (mode !== "camera") return;
-
+    if (mode !== "qrLive") return;
     const reader = new BrowserMultiFormatReader();
     let controls = null;
-
     reader
-      .decodeFromVideoDevice(null, videoRef.current, (result) => {
+      .decodeFromVideoDevice(null, videoRef.current, async (result) => {
         if (result) {
           controls?.stop();
-          verify(result.getText());
           setMode("idle");
+          await verifyQrOnly(result.getText());
         }
       })
       .catch(() => {
@@ -341,36 +570,31 @@ export default function UnifiedVerify() {
       .then((c) => {
         controls = c;
       });
-
     return () => controls?.stop();
-  }, [mode, showMessage, verify]);
+  }, [mode, showMessage, verifyQrOnly]);
 
-  const modeMeta = {
-    camera: {
-      title: "Camera Scan",
-      description: "Use your device camera to detect the certificate QR.",
-      short: "Live scan",
+  const groupedModes = [
+    {
+      label: "Manual",
+      items: [{ icon: ScanLine, title: "Manual QR", activeMode: "manual", short: "Blockchain only" }],
     },
-    pdf: {
-      title: "PDF Document",
-      description: "Upload a certificate PDF and scan each page for QR data.",
-      short: "Upload PDF",
+    {
+      label: "QR Only",
+      items: [
+        { icon: Camera, title: "Live QR Scan", activeMode: "qrLive", short: "QR -> DB -> chain" },
+        { icon: Upload, title: "QR Image", activeMode: "qrImage", short: "QR image" },
+      ],
     },
-    upload: {
-      title: "Image Upload",
-      description: "Upload a screenshot or QR image for direct verification.",
-      short: "Upload image",
+    {
+      label: "Complete Certificate",
+      items: [
+        { icon: Upload, title: "Certificate Image", activeMode: "certificateImage", short: "Image OCR" },
+        { icon: FileText, title: "Certificate PDF", activeMode: "certificatePdf", short: "PDF OCR" },
+      ],
     },
-    manual: {
-      title: "Manual Input",
-      description: "Paste the certificate hash or raw QR payload manually.",
-      short: "Paste ID",
-    },
-  };
+  ];
 
-  const activeModeMeta = modeMeta[mode];
-
-  const SidebarItem = ({ icon: Icon, title, activeMode }) => (
+  const SidebarItem = ({ icon: Icon, title, activeMode, short }) => (
     <button
       onClick={() => {
         setMode(activeMode);
@@ -396,13 +620,15 @@ export default function UnifiedVerify() {
         </div>
         <div>
           <p className="text-sm font-semibold tracking-tight">{title}</p>
-          <p className="text-xs text-gray-400 group-hover:text-blue-500">
-            {modeMeta[activeMode].short}
-          </p>
+          <p className="text-xs text-gray-400 group-hover:text-blue-500">{short}</p>
         </div>
       </div>
     </button>
   );
+
+  const statusTone = error
+    ? "border-red-200 bg-red-50 text-red-600"
+    : "border-emerald-200 bg-emerald-50 text-emerald-600";
 
   return (
     <div
@@ -418,9 +644,7 @@ export default function UnifiedVerify() {
             <div className="flex h-11 w-11 items-center justify-center rounded-lg">
               <img src="/pnglogo.png" alt="DECIVE" className="h-full w-full object-contain" />
             </div>
-            <span className="text-xl font-semibold tracking-tight text-blue-600">
-              DECIVE
-            </span>
+            <span className="text-xl font-semibold tracking-tight text-blue-600">DECIVE</span>
           </div>
         </div>
 
@@ -430,16 +654,24 @@ export default function UnifiedVerify() {
               Verification Hub
             </p>
             <p className="mt-2 text-sm leading-6 text-blue-900">
-              Verify certificates from QR, PDF, image, or manual record input.
+              Manual uses blockchain only. QR uses database plus blockchain. Full certificate uses OCR, database, and blockchain.
             </p>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2 px-4">
-          <SidebarItem icon={Camera} title="Camera Scan" activeMode="camera" />
-          <SidebarItem icon={FileText} title="PDF Document" activeMode="pdf" />
-          <SidebarItem icon={Upload} title="Image Upload" activeMode="upload" />
-          <SidebarItem icon={ScanLine} title="Manual Input" activeMode="manual" />
+        <nav className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+          {groupedModes.map((group) => (
+            <div key={group.label}>
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                {group.label}
+              </p>
+              <div className="space-y-2">
+                {group.items.map((item) => (
+                  <SidebarItem key={item.activeMode} {...item} />
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="p-4">
@@ -449,7 +681,7 @@ export default function UnifiedVerify() {
               Security Active
             </div>
             <p className="text-sm leading-6 text-gray-600">
-              End-to-end encrypted verification via decentralized ledger nodes.
+              Every verification path returns explicit step status so you can see where tampering happened.
             </p>
           </div>
         </div>
@@ -476,20 +708,14 @@ export default function UnifiedVerify() {
           </div>
         </header>
 
-        <main className="grid min-h-[calc(100vh-89px)] grid-cols-1 gap-8 bg-gray-50 px-8 py-8 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <main className="grid min-h-[calc(100vh-89px)] grid-cols-1 gap-8 bg-gray-50 px-8 py-8 xl:grid-cols-[minmax(0,1fr)_420px]">
           <section className="space-y-6">
-         
-
             <div className="rounded-3xl border border-gray-200 bg-white p-6">
               {loading ? (
                 <div className="flex min-h-[440px] flex-col items-center justify-center text-center">
-                  <div className="h-16 w-16 rounded-full border-4 border-gray-200 border-t-blue-600 animate-spin" />
-                  <h3 className="mt-6 text-xl font-semibold text-gray-900">
-                    {mode === "pdf" ? "Processing document..." : "Authenticating..."}
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-500">
-                    {scanProgress || "Fetching records from blockchain"}
-                  </p>
+                  <div className="h-16 w-16 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
+                  <h3 className="mt-6 text-xl font-semibold text-gray-900">{loadingLabel}</h3>
+                  <p className="mt-2 text-sm text-gray-500">{scanProgress || "Fetching verification records"}</p>
                   {pdfInfo && (
                     <p className="mt-3 text-xs text-gray-400">
                       {pdfInfo.name} | {pdfInfo.pages} page(s) | {pdfInfo.size}
@@ -507,17 +733,17 @@ export default function UnifiedVerify() {
                         Ready to verify
                       </h3>
                       <p className="mt-3 max-w-md text-sm leading-6 text-gray-500">
-                        Pick a method from the left sidebar to start certificate verification.
+                        Choose a verification path from the left sidebar.
                       </p>
                     </div>
                   )}
 
-                  {mode === "camera" && (
+                  {mode === "qrLive" && (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">Live Camera Scan</h3>
-                          <p className="text-sm text-gray-500">Place the QR code inside the frame.</p>
+                          <h3 className="text-lg font-semibold text-gray-900">Live QR Scan</h3>
+                          <p className="text-sm text-gray-500">Runs QR to database to blockchain verification.</p>
                         </div>
                         <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
                           Live
@@ -525,12 +751,12 @@ export default function UnifiedVerify() {
                       </div>
                       <div className="relative overflow-hidden rounded-[28px] border border-gray-200 bg-gray-100">
                         <video ref={videoRef} className="aspect-[16/10] w-full object-cover" autoPlay />
-                        <div className="pointer-events-none absolute inset-8 rounded-[24px] border-2 border-blue-400/70 transition-colors duration-200" />
+                        <div className="pointer-events-none absolute inset-8 rounded-[24px] border-2 border-blue-400/70" />
                       </div>
                     </div>
                   )}
 
-                  {(mode === "pdf" || mode === "upload") && (
+                  {(mode === "qrImage" || mode === "certificateImage" || mode === "certificatePdf") && (
                     <div className="flex min-h-[440px] items-center justify-center">
                       <label className="w-full max-w-2xl cursor-pointer">
                         <div className="rounded-[28px] border border-dashed border-gray-300 bg-gray-50 px-8 py-16 text-center transition-colors duration-200 hover:border-blue-400 hover:bg-blue-50/40">
@@ -538,12 +764,14 @@ export default function UnifiedVerify() {
                             <Upload size={28} />
                           </div>
                           <h3 className="mt-6 text-2xl font-semibold tracking-tight text-gray-900">
-                            {mode === "pdf" ? "Upload PDF certificate" : "Upload QR image"}
+                            {mode === "qrImage" && "Upload QR image"}
+                            {mode === "certificateImage" && "Upload certificate image"}
+                            {mode === "certificatePdf" && "Upload certificate PDF"}
                           </h3>
                           <p className="mt-2 text-sm text-gray-500">
-                            {mode === "pdf"
-                              ? "Select a PDF file and scan it for a verifiable QR code."
-                              : "Select an image containing the certificate QR code."}
+                            {mode === "qrImage" && "QR image runs database and blockchain verification."}
+                            {mode === "certificateImage" && "Certificate image runs OCR, database, and blockchain verification."}
+                            {mode === "certificatePdf" && "Certificate PDF runs OCR/text, database, and blockchain verification."}
                           </p>
                           <div className="mt-8 inline-flex rounded-xl border border-blue-500 px-5 py-2.5 text-sm font-medium text-blue-600 transition-colors duration-200 hover:bg-blue-500 hover:text-white">
                             Browse files
@@ -551,12 +779,13 @@ export default function UnifiedVerify() {
                           <input
                             type="file"
                             className="hidden"
-                            accept={mode === "pdf" ? ".pdf" : "image/*"}
+                            accept={mode === "certificatePdf" ? ".pdf" : "image/*"}
                             onChange={(e) => {
-                              const file = e.target.files[0];
+                              const file = e.target.files?.[0];
                               if (!file) return;
-                              if (mode === "pdf") processPDF(file);
-                              else processImage(file);
+                              if (mode === "qrImage") processQrImage(file);
+                              if (mode === "certificateImage") processCertificateImage(file);
+                              if (mode === "certificatePdf") processCertificatePdf(file);
                             }}
                           />
                         </div>
@@ -572,25 +801,25 @@ export default function UnifiedVerify() {
                             <ScanLine size={20} />
                           </div>
                           <div>
-                            <h3 className="text-lg font-semibold text-gray-900">Manual ID Entry</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">Manual QR Input</h3>
                             <p className="text-sm text-gray-500">
-                              Paste the certificate hash or QR JSON payload.
+                              Paste the QR ID, raw QR payload, or certificate hash for direct blockchain verification.
                             </p>
                           </div>
                         </div>
                         <input
                           ref={manualInputRef}
                           type="text"
-                          placeholder="Enter certificate hash or QR payload"
+                          placeholder="Enter QR ID, QR payload JSON, or certificate hash"
                           className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 font-mono text-sm text-gray-700 outline-none transition-colors duration-200 focus:border-blue-500"
-                          onKeyDown={(e) => e.key === "Enter" && verify(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && verifyManual(e.target.value)}
                         />
                         <div className="mt-4 flex justify-end">
                           <button
-                            onClick={() => verify(manualInputRef.current?.value || "")}
+                            onClick={() => verifyManual(manualInputRef.current?.value || "")}
                             className="rounded-xl border border-blue-500 bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-white hover:text-blue-600"
                           >
-                            Validate credential
+                            Verify on blockchain
                           </button>
                         </div>
                       </div>
@@ -611,22 +840,67 @@ export default function UnifiedVerify() {
                   Status Panel
                 </h2>
               </div>
-              {certificate && (
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                  {verificationStatus || "Verified"}
+              {verificationStatus && (
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusTone}`}>
+                  {STATUS_LABELS[verificationStatus] || verificationStatus}
                 </span>
               )}
             </div>
 
-            <div className="mt-6 flex min-h-[620px] flex-col">
-              {!certificate && !error && (
-                <div className="flex flex-1 flex-col items-center justify-center text-center">
+            <div className="mt-6 space-y-5">
+              {verificationSteps.length > 0 && (
+                <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+                    Step Status
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {verificationSteps.map((step) => (
+                      <div
+                        key={step.name}
+                        className={`rounded-2xl border p-4 ${
+                          step.passed ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl border ${
+                              step.passed
+                                ? "border-emerald-200 bg-white text-emerald-600"
+                                : "border-red-200 bg-white text-red-500"
+                            }`}
+                          >
+                            {step.passed ? <CheckCircle2 size={18} /> : <CircleDashed size={18} />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {step.label || STEP_LABELS[step.name] || step.name}
+                              </p>
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                  step.passed ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {step.passed ? "Passed" : "Failed"}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-gray-600">{step.message}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!certificate && !error && verificationSteps.length === 0 && (
+                <div className="flex min-h-[320px] flex-col items-center justify-center text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-gray-400">
                     <Info size={28} />
                   </div>
-                  <p className="mt-4 text-sm font-medium text-gray-700">Awaiting data input</p>
+                  <p className="mt-4 text-sm font-medium text-gray-700">Awaiting verification</p>
                   <p className="mt-2 max-w-xs text-sm leading-6 text-gray-500">
-                    Results will appear here once a certificate is scanned or submitted.
+                    Step results and certificate details will appear here.
                   </p>
                 </div>
               )}
@@ -672,11 +946,8 @@ export default function UnifiedVerify() {
                       { label: "Recipient", val: certificate.recipientName, icon: User },
                       { label: "Institution", val: certificate.institutionName, icon: Building },
                       { label: "Course", val: certificate.courseName, icon: BookOpen },
-                    ].map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="rounded-2xl border border-gray-200 bg-gray-50 p-4 transition-colors duration-200 hover:border-blue-300"
-                      >
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                         <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
                           <item.icon size={14} />
                           {item.label}
@@ -719,9 +990,9 @@ export default function UnifiedVerify() {
                     </button>
                     <button
                       onClick={() => {
-                        setCertificate(null);
-                        setVerificationStatus(null);
-                        setVerificationDetails(null);
+                        resetVerificationState();
+                        setPdfInfo(null);
+                        setScanProgress("");
                       }}
                       className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-600 transition-colors duration-200 hover:border-blue-400 hover:text-blue-600"
                     >
@@ -734,7 +1005,7 @@ export default function UnifiedVerify() {
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
                         Verification Details
                       </p>
-                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs leading-6 text-gray-600">
+                      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap break-words text-xs leading-6 text-gray-600">
                         {JSON.stringify(verificationDetails, null, 2)}
                       </pre>
                     </div>

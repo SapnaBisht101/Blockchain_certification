@@ -53,6 +53,12 @@ const CertificateSchema = new mongoose.Schema({
   certificateHash: { type: String, default: null }, // Jo hash blockchain pe bheja
   txHash: { type: String, default: null },          // Blockchain Transaction ID (Proof)
   isOnChain: { type: Boolean, default: false }, // blockchain pe hai ya nhi 
+  status: {
+    type: String,
+    enum: ["active", "revoked"],
+    default: "active",
+  },
+  revokedAt: { type: Date, default: null },
 });
 
 
