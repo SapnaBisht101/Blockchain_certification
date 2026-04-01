@@ -45,6 +45,7 @@ const STATUS_LABELS = {
   INVALID: "Invalid",
 };
 
+// OCR output is noisy, so normalize common scan mistakes before comparing it to QR data.
 const normalizeValue = (value) =>
   String(value || "")
     .trim()
@@ -72,6 +73,44 @@ const normalizeTextBlock = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const toNormalizedSearchToken = (value) => normalizeTextBlock(value);
+
+const buildDateSearchTokens = (value) => {
+  const normalizedRawValue = toNormalizedSearchToken(value);
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizedRawValue ? [normalizedRawValue] : [];
+  }
+
+  const utcYear = parsedDate.getUTCFullYear();
+  const utcMonth = parsedDate.getUTCMonth();
+  const utcDay = parsedDate.getUTCDate();
+  const utcDate = new Date(Date.UTC(utcYear, utcMonth, utcDay));
+
+  return [
+    normalizedRawValue,
+    toNormalizedSearchToken(utcDate.toISOString().slice(0, 10)),
+    toNormalizedSearchToken(
+      utcDate.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      }),
+    ),
+    toNormalizedSearchToken(
+      utcDate.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        timeZone: "UTC",
+      }),
+    ),
+  ].filter(Boolean);
+};
+
+// QR uploads may contain either the raw ID or the full JSON payload.
 const parseQrPayload = (rawData) => {
   if (!rawData || typeof rawData !== "string") {
     return { qrCodeId: "", payload: null };
@@ -92,34 +131,45 @@ const parseQrPayload = (rawData) => {
   }
 };
 
+// Only compare the visible fields that should appear on the certificate itself.
 const buildExpectedOcrSegments = (qrPayload = {}) =>
   [
-    { key: "certificateTitle", label: "Certificate Title", value: qrPayload.certificateTitle },
-    { key: "studentName", label: "Recipient", value: qrPayload.studentName },
-    { key: "studentEmail", label: "Student Email", value: qrPayload.studentEmail },
-    { key: "courseName", label: "Course", value: qrPayload.courseName },
-    { key: "issuerName", label: "Issuer", value: qrPayload.issuerName },
-    { key: "institutionName", label: "Institution", value: qrPayload.institutionName },
+    { key: "qrCodeId", label: "Certificate ID", value: qrPayload.qrCodeId },
+    { key: "studentName", label: "Student Name", value: qrPayload.studentName },
+    { key: "issuerName", label: "Issuer Name", value: qrPayload.issuerName },
+    { key: "completionDate", label: "Completion Date", value: qrPayload.completionDate },
+    { key: "courseName", label: "Course Name", value: qrPayload.courseName },
   ]
     .map((segment) => ({
       ...segment,
-      normalizedValue: normalizeTextBlock(segment.value),
+      searchTokens:
+        segment.key === "completionDate"
+          ? buildDateSearchTokens(segment.value)
+          : [toNormalizedSearchToken(segment.value)].filter(Boolean),
     }))
-    .filter((segment) => segment.normalizedValue);
+    .filter((segment) => segment.searchTokens.length > 0);
 
-const extractTextFromPdf = async (pdf) => {
-  const chunks = [];
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
-    const page = await pdf.getPage(pageNum);
-    const textContent = await page.getTextContent();
-    chunks.push(textContent.items.map((item) => item.str).join(" "));
+// PDF verification works by rendering each page to an image and reusing that image for both QR scanning and OCR.
+const renderPdfPageToCanvas = async (page, scale = 2.5) => {
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("PDF rendering is unavailable in this browser.");
   }
-  return chunks.join(" ");
+
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: context, viewport }).promise;
+
+  return { canvas, context };
 };
 
 export default function UnifiedVerify() {
   const { showMessage } = useMessage();
   const navigate = useNavigate();
+  // Shared verification state drives the progress panel and result card across all modes.
   const [mode, setMode] = useState("idle");
   const [loading, setLoading] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState("Authenticating...");
@@ -141,6 +191,7 @@ export default function UnifiedVerify() {
     setVerificationSteps([]);
   }, []);
 
+  // A simple black-and-white fallback makes low-contrast QR codes easier to decode.
   const preprocessImage = useCallback((imageData) => {
     const data = new Uint8ClampedArray(imageData.data);
     for (let i = 0; i < data.length; i += 4) {
@@ -313,7 +364,7 @@ export default function UnifiedVerify() {
     const normalizedOcrText = normalizeTextBlock(cleanedText);
     const expectedSegments = buildExpectedOcrSegments(qrPayload);
     const missingSegments = expectedSegments
-      .filter((segment) => !normalizedOcrText.includes(segment.normalizedValue))
+      .filter((segment) => !segment.searchTokens.some((token) => normalizedOcrText.includes(token)))
       .map((segment) => segment.label);
 
     return {
@@ -325,7 +376,12 @@ export default function UnifiedVerify() {
           ? "All QR text values were found in the OCR text."
           : "One or more QR text values were not found in the OCR text.",
       details: {
-        expectedSegments: expectedSegments.map(({ key, label, value }) => ({ key, label, value })),
+        expectedSegments: expectedSegments.map(({ key, label, value, searchTokens }) => ({
+          key,
+          label,
+          value,
+          searchTokens,
+        })),
         missingSegments,
         rawOcrText: cleanedText,
         ignoredVisualElements: ["signatureImage", "institutionLogo"],
@@ -364,14 +420,18 @@ export default function UnifiedVerify() {
     [postVerificationWithSteps, resetVerificationState, showMessage, verifyOcrLocally],
   );
 
-  const runImageOcr = useCallback(async (file) => {
+  // Tesseract accepts both uploaded files and canvases rendered from PDF pages.
+  const runImageOcr = useCallback(async (source, progressLabel = "image") => {
     const { default: Tesseract } = await import("tesseract.js");
-    const result = await Tesseract.recognize(file, "eng", {
+    const result = await Tesseract.recognize(source, "eng", {
       logger: ({ status }) => {
-        if (status) setScanProgress(`OCR: ${status}`);
+        if (status) setScanProgress(`OCR (${progressLabel}): ${status}`);
       },
     });
-    return result.data?.text || "";
+
+    const extractedText = result.data?.text || "";
+    console.log(`[OCR][${progressLabel}]`, extractedText);
+    return extractedText;
   }, []);
 
   const processQrImage = useCallback(
@@ -405,8 +465,7 @@ export default function UnifiedVerify() {
         ctx.drawImage(img, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const qrData = decodeQrFromImageData(imageData);
-        console.log("Qr-Code Data :" , qrData);
-        
+        console.log("[QR][qrImage]", qrData || "No QR detected");
 
         URL.revokeObjectURL(objectUrl);
         setLoading(false);
@@ -457,13 +516,12 @@ export default function UnifiedVerify() {
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const qrData = decodeQrFromImageData(imageData);
-          console.log("Qr-Code-Image-Data:",qrData);
-          
+          console.log("[QR][certificateImage]", qrData || "No QR detected");
+
           if (!qrData) throw new Error("No QR code detected in the certificate image.");
 
-          const ocrText = await runImageOcr(file);
-          console.log(ocrText);
-          
+          // For uploaded images, OCR runs directly on the original file.
+          const ocrText = await runImageOcr(file, "certificateImage");
           URL.revokeObjectURL(objectUrl);
           setLoading(false);
           await verifyCompleteCertificate({ qrData, rawText: ocrText });
@@ -514,28 +572,37 @@ export default function UnifiedVerify() {
           size: `${(file.size / 1024).toFixed(2)} KB`,
         });
 
-        const extractedText = await extractTextFromPdf(pdf);
+        const ocrChunks = [];
         let qrData = null;
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
-          setScanProgress(`Scanning page ${pageNum} of ${pdf.numPages} for QR...`);
+          setScanProgress(`Rendering page ${pageNum} of ${pdf.numPages}...`);
           const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.5 });
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-          if (!context) continue;
-
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          await page.render({ canvasContext: context, viewport }).promise;
+          const { canvas, context } = await renderPdfPageToCanvas(page);
           const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          qrData = decodeQrFromImageData(imageData);
-          console.log("Qr-Code-Image-Data:",qrData);
-          
-          if (qrData) break;
+
+          // Stop scanning for QR once one valid payload has been recovered, but keep OCRing remaining pages.
+          if (!qrData) {
+            setScanProgress(`Scanning page ${pageNum} of ${pdf.numPages} for QR...`);
+            qrData = decodeQrFromImageData(imageData);
+            console.log(`[QR][certificatePdf][page ${pageNum}]`, qrData || "No QR detected");
+          }
+
+          // OCR each rendered page image because many generated/scanned PDFs do not contain a text layer.
+          setScanProgress(`Running OCR on page ${pageNum} of ${pdf.numPages}...`);
+          const pageText = await runImageOcr(canvas, `PDF page ${pageNum}`);
+          if (pageText.trim()) {
+            ocrChunks.push(pageText);
+          }
         }
 
         if (!qrData) throw new Error("No QR code detected in the PDF certificate.");
+        const extractedText = ocrChunks.join(" ").trim();
+        console.log("[QR][certificatePdf][final]", qrData);
+        console.log("[OCR][certificatePdf][final]", extractedText);
+        if (!extractedText) {
+          throw new Error("No OCR text could be extracted from the PDF certificate.");
+        }
 
         setLoading(false);
         await verifyCompleteCertificate({ qrData, rawText: extractedText });
@@ -547,7 +614,7 @@ export default function UnifiedVerify() {
         setScanProgress("");
       }
     },
-    [decodeQrFromImageData, resetVerificationState, showMessage, verifyCompleteCertificate],
+    [decodeQrFromImageData, resetVerificationState, runImageOcr, showMessage, verifyCompleteCertificate],
   );
 
   useEffect(() => {

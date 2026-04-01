@@ -373,12 +373,14 @@ const CertificateGenerator = () => {
         </div>
 
         {/* Right Column: Certificate Preview (Larger/Flexible Width) */}
-        <div className="lg:w-2/3 w-full flex justify-center">
-          <Tempelate
-            certData={certData}
-            qrCodeImage={qrCodeImage}
-            qrCodeId={qrCodeId}
-          />
+        <div className="lg:w-2/3 w-full overflow-auto">
+          <div className="mx-auto flex min-w-fit justify-center pb-4">
+            <Tempelate
+              certData={certData}
+              qrCodeImage={qrCodeImage}
+              qrCodeId={qrCodeId}
+            />
+          </div>
         </div>
       </div>
     </div>

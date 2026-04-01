@@ -68,6 +68,43 @@
       .replace(/\s+/g, " ")
       .trim();
 
+  const toNormalizedSearchToken = (value) => normalizeTextBlock(value);
+
+  const buildDateSearchTokens = (value) => {
+    const normalizedRawValue = toNormalizedSearchToken(value);
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return normalizedRawValue ? [normalizedRawValue] : [];
+    }
+
+    const utcYear = parsedDate.getUTCFullYear();
+    const utcMonth = parsedDate.getUTCMonth();
+    const utcDay = parsedDate.getUTCDate();
+    const utcDate = new Date(Date.UTC(utcYear, utcMonth, utcDay));
+
+    return [
+      normalizedRawValue,
+      toNormalizedSearchToken(utcDate.toISOString().slice(0, 10)),
+      toNormalizedSearchToken(
+        utcDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "UTC",
+        })
+      ),
+      toNormalizedSearchToken(
+        utcDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "numeric",
+          day: "numeric",
+          timeZone: "UTC",
+        })
+      ),
+    ].filter(Boolean);
+  };
+
 
   const formatStep = (name, passed, details = {}, message = "") => ({
     name,
@@ -119,18 +156,20 @@
 
   const buildExpectedOcrSegments = (qrPayload = {}) =>
     [
-      { key: "certificateTitle", label: "Certificate Title", value: qrPayload.certificateTitle },
-      { key: "studentName", label: "Recipient", value: qrPayload.studentName },
-      { key: "studentEmail", label: "Student Email", value: qrPayload.studentEmail },
-      { key: "courseName", label: "Course", value: qrPayload.courseName },
-      { key: "issuerName", label: "Issuer", value: qrPayload.issuerName },
-      { key: "institutionName", label: "Institution", value: qrPayload.institutionName },
+      { key: "qrCodeId", label: "Certificate ID", value: qrPayload.qrCodeId },
+      { key: "studentName", label: "Student Name", value: qrPayload.studentName },
+      { key: "issuerName", label: "Issuer Name", value: qrPayload.issuerName },
+      { key: "completionDate", label: "Completion Date", value: qrPayload.completionDate },
+      { key: "courseName", label: "Course Name", value: qrPayload.courseName },
     ]
       .map((segment) => ({
         ...segment,
-        normalizedValue: normalizeTextBlock(segment.value),
+        searchTokens:
+          segment.key === "completionDate"
+            ? buildDateSearchTokens(segment.value)
+            : [toNormalizedSearchToken(segment.value)].filter(Boolean),
       }))
-      .filter((segment) => segment.normalizedValue);
+      .filter((segment) => segment.searchTokens.length > 0);
 
   const serializeCertificate = (cert) => {
     const plain = cert.toObject ? cert.toObject() : cert;
@@ -155,13 +194,11 @@
   const verifyAgainstDatabase = (cert, qrPayload = {}) => {
     const expectedPayload = buildCertificatePayload(cert);
     const comparedFields = [
-      ["qrCodeId", "QR ID"],
-      ["studentName", "Recipient"],
-      ["studentEmail", "Student Email"],
-      ["courseName", "Course"],
-      ["issuerName", "Issuer"],
-      ["institutionName", "Institution"],
-      ["certificateTitle", "Certificate Title"],
+      ["qrCodeId", "Certificate ID"],
+      ["studentName", "Student Name"],
+      ["courseName", "Course Name"],
+      ["issuerName", "Issuer Name"],
+      ["completionDate", "Completion Date"],
     ];
 
     if (cert.status === "revoked") {
@@ -177,6 +214,11 @@
       .filter(([key]) => {
         const qrValue = normalizeValue(qrPayload[key]);
         if (!qrValue) return false;
+        if (key === "completionDate") {
+          const qrTokens = buildDateSearchTokens(qrPayload[key]);
+          const expectedTokens = buildDateSearchTokens(expectedPayload[key]);
+          return !qrTokens.some((token) => expectedTokens.includes(token));
+        }
         return qrValue !== normalizeValue(expectedPayload[key]);
       })
       .map(([, label]) => label);
@@ -241,7 +283,7 @@
     const expectedSegments = buildExpectedOcrSegments(qrPayload);
 
     const missingSegments = expectedSegments
-      .filter((segment) => !normalizedOcrText.includes(segment.normalizedValue))
+      .filter((segment) => !segment.searchTokens.some((token) => normalizedOcrText.includes(token)))
       .map((segment) => segment.label);
     const passed = missingSegments.length === 0;
 
@@ -249,7 +291,12 @@
       "ocr_verified",
       passed,
       {
-        expectedSegments: expectedSegments.map(({ key, label, value }) => ({ key, label, value })),
+        expectedSegments: expectedSegments.map(({ key, label, value, searchTokens }) => ({
+          key,
+          label,
+          value,
+          searchTokens,
+        })),
         missingSegments,
         rawOcrText: cleanedText,
         ignoredVisualElements: ["signatureImage", "institutionLogo"],

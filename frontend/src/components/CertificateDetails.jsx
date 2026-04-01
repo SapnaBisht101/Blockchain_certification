@@ -113,9 +113,8 @@ const CertificateDetails = () => {
 
       {/* CERTIFICATE PREVIEW STAGE */}
 
-      <div className="w-full flex justify-center ">
-        {/* A4 CONTAINER */}
-        <div className="lg:w-2/3 max-w-7xl flex justify-center">
+      <div className="w-full overflow-auto px-4 py-6 lg:px-8">
+        <div className="mx-auto flex min-w-fit justify-center">
           <Tempelete
             certData={certData}
             qrCodeImage={certificate.qrImage}
