@@ -69,6 +69,8 @@
       .trim();
 
   const toNormalizedSearchToken = (value) => normalizeTextBlock(value);
+  const toCompactIdentifier = (value) => normalizeValue(value).replace(/[^a-z0-9]/g, "");
+  const toWordTokens = (value) => toNormalizedSearchToken(value).split(" ").filter(Boolean);
 
   const buildDateSearchTokens = (value) => {
     const normalizedRawValue = toNormalizedSearchToken(value);
@@ -105,7 +107,65 @@
     ].filter(Boolean);
   };
 
+  const buildExpectedOcrSegments = (qrPayload = {}) =>
+    [
+      { key: "qrCodeId", label: "Certificate ID", value: qrPayload.qrCodeId, type: "id" },
+      { key: "studentName", label: "Student Name", value: qrPayload.studentName, type: "text" },
+      { key: "issuerName", label: "Issuer Name", value: qrPayload.issuerName, type: "text" },
+      { key: "certificateTitle", label: "Certificate Title", value: qrPayload.certificateTitle, type: "text" },
+      { key: "completionDate", label: "Date Of Issuance", value: qrPayload.completionDate, type: "date" },
+    ].filter((segment) => segment.value);
 
+  const matchOcrSegment = (segment, normalizedOcrText) => {
+    const ocrWordSet = new Set(toWordTokens(normalizedOcrText));
+    const compactOcrText = toCompactIdentifier(normalizedOcrText);
+
+    if (segment.type === "id") {
+      const compactExpectedId = toCompactIdentifier(segment.value);
+      return {
+        matched: Boolean(compactExpectedId) && compactOcrText.includes(compactExpectedId),
+        strategy: "compact_id",
+        expected: compactExpectedId,
+      };
+    }
+
+    if (segment.type === "date") {
+      const dateCandidates = buildDateSearchTokens(segment.value);
+      const exactDateMatch = dateCandidates.find((candidate) => normalizedOcrText.includes(candidate));
+
+      if (exactDateMatch) {
+        return { matched: true, strategy: "date_candidate", expected: exactDateMatch };
+      }
+
+      const dateTokens = dateCandidates
+        .flatMap((candidate) => candidate.split(" "))
+        .filter((token) => token.length > 1);
+      const uniqueDateTokens = [...new Set(dateTokens)];
+      const matchedDateTokens = uniqueDateTokens.filter((token) => ocrWordSet.has(token));
+
+      return {
+        matched: uniqueDateTokens.length > 0 && matchedDateTokens.length >= Math.min(3, uniqueDateTokens.length),
+        strategy: "date_tokens",
+        expected: dateCandidates,
+        matchedTokens: matchedDateTokens,
+      };
+    }
+
+    const normalizedValue = toNormalizedSearchToken(segment.value);
+    if (normalizedValue && normalizedOcrText.includes(normalizedValue)) {
+      return { matched: true, strategy: "exact_text", expected: normalizedValue };
+    }
+
+    const expectedTokens = toWordTokens(segment.value).filter((token) => token.length > 1);
+    const matchedTokens = expectedTokens.filter((token) => ocrWordSet.has(token));
+
+    return {
+      matched: expectedTokens.length > 0 && matchedTokens.length === expectedTokens.length,
+      strategy: "word_tokens",
+      expected: expectedTokens,
+      matchedTokens,
+    };
+  };
   const formatStep = (name, passed, details = {}, message = "") => ({
     name,
     label:
@@ -154,23 +214,6 @@
     certificateTitle: cert.certificateTitle,
   });
 
-  const buildExpectedOcrSegments = (qrPayload = {}) =>
-    [
-      { key: "qrCodeId", label: "Certificate ID", value: qrPayload.qrCodeId },
-      { key: "studentName", label: "Student Name", value: qrPayload.studentName },
-      { key: "issuerName", label: "Issuer Name", value: qrPayload.issuerName },
-      { key: "completionDate", label: "Completion Date", value: qrPayload.completionDate },
-      { key: "courseName", label: "Course Name", value: qrPayload.courseName },
-    ]
-      .map((segment) => ({
-        ...segment,
-        searchTokens:
-          segment.key === "completionDate"
-            ? buildDateSearchTokens(segment.value)
-            : [toNormalizedSearchToken(segment.value)].filter(Boolean),
-      }))
-      .filter((segment) => segment.searchTokens.length > 0);
-
   const serializeCertificate = (cert) => {
     const plain = cert.toObject ? cert.toObject() : cert;
     return {
@@ -196,9 +239,9 @@
     const comparedFields = [
       ["qrCodeId", "Certificate ID"],
       ["studentName", "Student Name"],
-      ["courseName", "Course Name"],
       ["issuerName", "Issuer Name"],
-      ["completionDate", "Completion Date"],
+      ["certificateTitle", "Certificate Title"],
+      ["completionDate", "Date Of Issuance"],
     ];
 
     if (cert.status === "revoked") {
@@ -281,9 +324,12 @@
     const cleanedText = cleanOCR(rawOcrText);
     const normalizedOcrText = normalizeTextBlock(cleanedText);
     const expectedSegments = buildExpectedOcrSegments(qrPayload);
-
-    const missingSegments = expectedSegments
-      .filter((segment) => !segment.searchTokens.some((token) => normalizedOcrText.includes(token)))
+    const segmentResults = expectedSegments.map((segment) => ({
+      ...segment,
+      match: matchOcrSegment(segment, normalizedOcrText),
+    }));
+    const missingSegments = segmentResults
+      .filter((segment) => !segment.match.matched)
       .map((segment) => segment.label);
     const passed = missingSegments.length === 0;
 
@@ -291,19 +337,20 @@
       "ocr_verified",
       passed,
       {
-        expectedSegments: expectedSegments.map(({ key, label, value, searchTokens }) => ({
+        expectedSegments: segmentResults.map(({ key, label, value, type, match }) => ({
           key,
           label,
           value,
-          searchTokens,
+          type,
+          match,
         })),
         missingSegments,
         rawOcrText: cleanedText,
         ignoredVisualElements: ["signatureImage", "institutionLogo"],
       },
       passed
-        ? "All QR text values were found in the OCR text."
-        : "One or more QR text values were not found in the OCR text."
+        ? "All required certificate fields were matched between QR and OCR."
+        : "One or more required certificate fields could not be matched in OCR."
     );
   };
 
