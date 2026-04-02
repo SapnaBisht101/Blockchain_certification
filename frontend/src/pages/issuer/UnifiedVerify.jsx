@@ -430,7 +430,6 @@ export default function UnifiedVerify() {
     });
 
     const extractedText = result.data?.text || "";
-    console.log(`[OCR][${progressLabel}]`, extractedText);
     return extractedText;
   }, []);
 
@@ -585,7 +584,6 @@ export default function UnifiedVerify() {
           if (!qrData) {
             setScanProgress(`Scanning page ${pageNum} of ${pdf.numPages} for QR...`);
             qrData = decodeQrFromImageData(imageData);
-            console.log(`[QR][certificatePdf][page ${pageNum}]`, qrData || "No QR detected");
           }
 
           // OCR each rendered page image because many generated/scanned PDFs do not contain a text layer.
@@ -712,17 +710,6 @@ export default function UnifiedVerify() {
               <img src="/pnglogo.png" alt="DECIVE" className="h-full w-full object-contain" />
             </div>
             <span className="text-xl font-semibold tracking-tight text-blue-600">DECIVE</span>
-          </div>
-        </div>
-
-        <div className="px-4 pb-4">
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600">
-              Verification Hub
-            </p>
-            <p className="mt-2 text-sm leading-6 text-blue-900">
-              Manual uses blockchain only. QR uses database plus blockchain. Full certificate uses OCR, database, and blockchain.
-            </p>
           </div>
         </div>
 
