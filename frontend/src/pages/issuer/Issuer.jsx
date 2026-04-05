@@ -57,7 +57,7 @@ const Issuer = () => {
             `http://localhost:4000/issuer/${details.id}/certificates`
           );
           const certificatesArray = certis.data.data || [];
-          console.log(certificatesArray); 
+          console.log(certificatesArray);
           setIssuedCertificates(certificatesArray);
           setTotalCertificates(certificatesArray.length);
         }
@@ -314,7 +314,6 @@ hover:text-blue-600    transition-all duration-200"
                       Certificates Issued
                     </p>
                   </div>
-
                   {/* This Month Box - Converted to Dark Theme for Consistency */}
                   <div className="bg-white justify-between border-4 border-blue-500 flex flex-col text-blue-600 rounded-3xl w-40 h-40 shadow-lg">
                     <div className="flex items-center justify-center   p-3 bg-blue-700 rounded-t-2xl">
@@ -336,6 +335,20 @@ hover:text-blue-600    transition-all duration-200"
                     </p>
                     <p className="text-xs justify-center flex p-3 text-white bg-blue-500 rounded-b-2xl font-medium">
                       Recently Issued
+                    </p>
+                  </div>
+                  {/* pending requests box  */}
+                  <div className="bg-white justify-between border-4 border-blue-700 flex flex-col text-blue-600 rounded-3xl w-40 h-40 shadow-lg">
+                    <div className="flex items-center justify-center   p-3 bg-blue-700 rounded-t-2xl">
+                      <span className="text-sm font-semibold text-white uppercase tracking-wider">
+                        Pending
+                      </span>
+                    </div>
+                    <p className="text-4xl font-bold  justify-center bg items-center flex flex-1 tracking-tight text-blue-600">
+                      {pendingRequests.length}
+                    </p>
+                    <p className="text-xs justify-center flex p-3 text-white bg-blue-500 rounded-b-2xl font-medium">
+                      Requests
                     </p>
                   </div>
                 </div>

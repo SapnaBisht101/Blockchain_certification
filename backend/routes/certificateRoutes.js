@@ -572,6 +572,7 @@
     try {
       const { qrData, rawText } = req.body;
       const parsed = parseQrPayload(qrData);
+      console.log("[VERIFY][CERTIFICATE][OCR_RAW_TEXT]", cleanOCR(rawText || ""));
 
       if (!parsed.qrCodeId) {
         return res.status(400).json({

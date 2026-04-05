@@ -47,10 +47,17 @@ const STATUS_LABELS = {
 
 const TEMPLATE_OCR_REGIONS = [
   { key: "qrCodeId", label: "Certificate ID", x: 0.17, y: 0.025, w: 0.66, h: 0.055, psm: "7" },
-  { key: "certificateTitle", label: "Certificate Title", x: 0.18, y: 0.15, w: 0.64, h: 0.075, psm: "7" },
-  { key: "studentName", label: "Student Name", x: 0.18, y: 0.34, w: 0.64, h: 0.075, psm: "7" },
-  { key: "completionDate", label: "Date Of Issuance", x: 0.31, y: 0.68, w: 0.38, h: 0.065, psm: "7" },
-  { key: "issuerName", label: "Issuer Name", x: 0.08, y: 0.82, w: 0.36, h: 0.07, psm: "7" },
+];
+
+const OCR_FIELD_PASSES = [
+  { name: "single_line", psm: "7" },
+  { name: "uniform_block", psm: "6" },
+  { name: "sparse_text", psm: "11" },
+];
+
+const OCR_DOCUMENT_PASSES = [
+  { name: "uniform_block", psm: "6" },
+  { name: "sparse_text", psm: "11" },
 ];
 
 // OCR output is noisy, so normalize common scan mistakes before comparing it to QR data.
@@ -99,6 +106,7 @@ const normalizeTextBlock = (value) =>
 const toNormalizedSearchToken = (value) => normalizeTextBlock(value);
 const toCompactIdentifier = (value) => normalizeValue(value).replace(/[^a-z0-9]/g, "");
 const toWordTokens = (value) => toNormalizedSearchToken(value).split(" ").filter(Boolean);
+const stripCertificateIdLabel = (value) => String(value || "").replace(/certificate\s*id\s*:?\s*/i, "").trim();
 
 const buildDateSearchTokens = (value) => {
   const normalizedRawValue = toNormalizedSearchToken(value);
@@ -138,10 +146,6 @@ const buildDateSearchTokens = (value) => {
 const buildExpectedOcrSegments = (qrPayload = {}) =>
   [
     { key: "qrCodeId", label: "Certificate ID", value: qrPayload.qrCodeId, type: "id" },
-    { key: "studentName", label: "Student Name", value: qrPayload.studentName, type: "text" },
-    { key: "issuerName", label: "Issuer Name", value: qrPayload.issuerName, type: "text" },
-    { key: "certificateTitle", label: "Certificate Title", value: qrPayload.certificateTitle, type: "text" },
-    { key: "completionDate", label: "Date Of Issuance", value: qrPayload.completionDate, type: "date" },
   ].filter((segment) => segment.value);
 
 const buildQrFieldLog = (qrPayload = {}) => ({
@@ -182,14 +186,19 @@ const buildFieldMatchLog = (segmentResults = []) =>
     ]),
   );
 
-const buildFieldCropCanvas = (sourceCanvas, region) => {
+const formatFieldValue = (value) => {
+  const normalizedValue = String(value || "").trim();
+  return normalizedValue || "Not detected";
+};
+
+const buildFieldCropCanvas = (sourceCanvas, region, options = {}) => {
+  const { enhance = true, scale = 2 } = options;
   const sx = Math.max(0, Math.floor(sourceCanvas.width * region.x));
   const sy = Math.max(0, Math.floor(sourceCanvas.height * region.y));
   const sw = Math.max(1, Math.floor(sourceCanvas.width * region.w));
   const sh = Math.max(1, Math.floor(sourceCanvas.height * region.h));
 
   const targetCanvas = document.createElement("canvas");
-  const scale = 2;
   targetCanvas.width = sw * scale;
   targetCanvas.height = sh * scale;
   const targetContext = targetCanvas.getContext("2d");
@@ -201,6 +210,10 @@ const buildFieldCropCanvas = (sourceCanvas, region) => {
   targetContext.fillStyle = "#ffffff";
   targetContext.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
   targetContext.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, targetCanvas.width, targetCanvas.height);
+
+  if (!enhance) {
+    return targetCanvas;
+  }
 
   const imageData = targetContext.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
   const data = imageData.data;
@@ -216,15 +229,129 @@ const buildFieldCropCanvas = (sourceCanvas, region) => {
   return targetCanvas;
 };
 
+const buildDocumentOcrCanvas = (sourceCanvas, options = {}) => {
+  const { scale = 1.6, enhance = true } = options;
+  const targetCanvas = document.createElement("canvas");
+  targetCanvas.width = Math.max(1, Math.floor(sourceCanvas.width * scale));
+  targetCanvas.height = Math.max(1, Math.floor(sourceCanvas.height * scale));
+
+  const targetContext = targetCanvas.getContext("2d");
+  if (!targetContext) {
+    throw new Error("Canvas preprocessing is unavailable in this browser.");
+  }
+
+  targetContext.fillStyle = "#ffffff";
+  targetContext.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+  targetContext.drawImage(sourceCanvas, 0, 0, targetCanvas.width, targetCanvas.height);
+
+  if (!enhance) {
+    return targetCanvas;
+  }
+
+  const imageData = targetContext.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
+  const data = imageData.data;
+  for (let index = 0; index < data.length; index += 4) {
+    const gray = 0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+    const contrasted = gray > 210 ? 255 : gray < 130 ? 0 : Math.min(255, Math.max(0, (gray - 128) * 1.6 + 128));
+    data[index] = contrasted;
+    data[index + 1] = contrasted;
+    data[index + 2] = contrasted;
+  }
+  targetContext.putImageData(imageData, 0, 0);
+
+  return targetCanvas;
+};
+
+const buildUniqueTextBlock = (...texts) =>
+  [...new Set(texts.flatMap((text) => String(text || "").split(/\r?\n/).map(cleanOCRLine).filter(Boolean)))]
+    .join("\n")
+    .trim();
+
+const levenshteinDistance = (a = "", b = "") => {
+  const s = a.toLowerCase();
+  const t = b.toLowerCase();
+  if (s === t) return 0;
+  if (!s.length) return t.length;
+  if (!t.length) return s.length;
+
+  const prev = Array.from({ length: t.length + 1 }, (_, i) => i);
+  const curr = new Array(t.length + 1);
+
+  for (let i = 0; i < s.length; i += 1) {
+    curr[0] = i + 1;
+    for (let j = 0; j < t.length; j += 1) {
+      const cost = s[i] === t[j] ? 0 : 1;
+      curr[j + 1] = Math.min(
+        prev[j + 1] + 1, // deletion
+        curr[j] + 1, // insertion
+        prev[j] + cost, // substitution
+      );
+    }
+    prev.splice(0, prev.length, ...curr);
+  }
+  return prev[t.length];
+};
+
+const scoreOcrCandidate = (segment, candidate) => {
+  const match = matchExtractedField(segment, candidate);
+  if (match.matched) {
+    const strategyScores = {
+      compact_id: 100,
+      date_candidate: 96,
+      exact_text: 92,
+      fuzzy_id: 88,
+      token_overlap: 84,
+      date_tokens: 72,
+      word_tokens: 64,
+    };
+
+    return (strategyScores[match.strategy] || 50) + (match.matchedTokens?.length || 0);
+  }
+
+  if (segment.type === "id") {
+    const expectedId = toCompactIdentifier(segment.value);
+    const actualId = toCompactIdentifier(candidate);
+    if (!expectedId || !actualId) return 0;
+    return [...expectedId].filter((char) => actualId.includes(char)).length;
+  }
+
+  const expectedTokens = segment.type === "date" ? buildDateSearchTokens(segment.value) : toWordTokens(segment.value);
+  const candidateTokens = new Set(segment.type === "date" ? buildDateSearchTokens(candidate) : toWordTokens(candidate));
+  return expectedTokens.filter((token) => candidateTokens.has(token)).length;
+};
+
 const matchExtractedField = (segment, ocrValue) => {
   const normalizedOcrValue = toNormalizedSearchToken(ocrValue);
   const ocrWordSet = new Set(toWordTokens(ocrValue));
 
   if (segment.type === "id") {
     const compactExpectedId = toCompactIdentifier(segment.value);
-    const compactOcrValue = toCompactIdentifier(ocrValue);
+    const compactOcrValue = toCompactIdentifier(stripCertificateIdLabel(ocrValue));
+    if (Boolean(compactExpectedId) && compactOcrValue.includes(compactExpectedId)) {
+      return {
+        matched: true,
+        strategy: "compact_id",
+        expected: compactExpectedId,
+        actual: compactOcrValue,
+      };
+    }
+
+    // Allow small OCR errors (e.g., O/0 or 1/I) via Levenshtein distance threshold.
+    if (compactExpectedId && compactOcrValue && Math.abs(compactExpectedId.length - compactOcrValue.length) <= 2) {
+      const distance = levenshteinDistance(compactExpectedId, compactOcrValue);
+      if (distance <= 2) {
+        return {
+          matched: true,
+          strategy: "fuzzy_id",
+          expected: compactExpectedId,
+          actual: compactOcrValue,
+          distance,
+        };
+      }
+    }
+
     return {
-      matched: Boolean(compactExpectedId) && compactOcrValue.includes(compactExpectedId),
+      matched: false,
       strategy: "compact_id",
       expected: compactExpectedId,
       actual: compactOcrValue,
@@ -263,6 +390,18 @@ const matchExtractedField = (segment, ocrValue) => {
   const expectedTokens = toWordTokens(segment.value).filter((token) => token.length > 1);
   const matchedTokens = expectedTokens.filter((token) => ocrWordSet.has(token));
 
+  // Treat as match when we see >=60% of the expected tokens (helps with minor OCR drop/mis-ordering).
+  const overlapRatio = expectedTokens.length > 0 ? matchedTokens.length / expectedTokens.length : 0;
+  if (expectedTokens.length > 0 && overlapRatio >= 0.6) {
+    return {
+      matched: true,
+      strategy: "token_overlap",
+      expected: expectedTokens,
+      actual: normalizedOcrValue,
+      matchedTokens,
+    };
+  }
+
   return {
     matched: expectedTokens.length > 0 && matchedTokens.length === expectedTokens.length,
     strategy: "word_tokens",
@@ -270,6 +409,23 @@ const matchExtractedField = (segment, ocrValue) => {
     actual: normalizedOcrValue,
     matchedTokens,
   };
+};
+
+const matchSegmentWithFallback = (segment, extractedValue, rawText = "") => {
+  const fieldMatch = matchExtractedField(segment, extractedValue || "");
+  if (fieldMatch.matched) {
+    return { ...fieldMatch, source: "field_crop" };
+  }
+
+  const cleanedRawText = cleanOCR(rawText);
+  if (cleanedRawText) {
+    const fullTextMatch = matchExtractedField(segment, cleanedRawText);
+    if (fullTextMatch.matched) {
+      return { ...fullTextMatch, source: "full_ocr_text" };
+    }
+  }
+
+  return { ...fieldMatch, source: "field_crop" };
 };
 // QR uploads may contain either the raw ID or the full JSON payload.
 const parseQrPayload = (rawData) => {
@@ -366,44 +522,62 @@ export default function UnifiedVerify() {
 
   const applyVerificationResult = useCallback(
     (data, successMessage) => {
+      const blockchainError = data?.blockchainError || data?.blockchainMessage;
+      const combinedMessage = blockchainError || data?.message;
+      const steps = data.steps || [];
+      const allStepsPassed =
+        steps.length > 0 ? steps.every((step) => step.name === "ocr_verified" || step.passed !== false) : false;
+      const resolvedValid = data.valid || allStepsPassed;
+      const resolvedStatus =
+        data.status || (blockchainError ? "BLOCKCHAIN_FAILED" : resolvedValid ? "VERIFIED" : "INVALID");
       setError("");
-      setVerificationSteps(data.steps || []);
-      setVerificationDetails(data);
-      setVerificationStatus(data.status || (data.valid ? "VERIFIED" : "INVALID"));
-      if (data.valid && data.data) {
+      setVerificationSteps(steps);
+      setVerificationDetails({ ...data, steps, valid: resolvedValid, status: resolvedStatus });
+      setVerificationStatus(resolvedStatus);
+      if (resolvedValid && data.data) {
         setCertificate(data.data);
         showMessage(successMessage, "success");
         return;
       }
       setCertificate(data.data || null);
-      setError(data.message || "Verification failed.");
-      showMessage(data.message || "Verification failed.", "error");
+      setError(combinedMessage || "Verification failed.");
+      showMessage(combinedMessage || "Verification failed.", "error");
     },
     [showMessage],
   );
 
-  const mergeVerificationResult = useCallback(
-    (initialSteps, data, successMessage) => {
-      const mergedSteps = [...initialSteps, ...(data.steps || [])];
-      setError("");
-      setVerificationSteps(mergedSteps);
-      setVerificationDetails({ ...data, steps: mergedSteps });
-      setVerificationStatus(data.status || (data.valid ? "VERIFIED" : "INVALID"));
+const mergeVerificationResult = useCallback(
+  (initialSteps, data, successMessage) => {
+      const blockchainError = data?.blockchainError || data?.blockchainMessage;
+      const combinedMessage = blockchainError || data?.message;
+    const serverSteps = (data.steps || []).filter(
+      (serverStep) => !initialSteps.some((initialStep) => initialStep.name === serverStep.name),
+    );
+    const mergedSteps = [...initialSteps, ...serverSteps];
+    const allStepsPassed =
+      mergedSteps.length > 0 ? mergedSteps.every((step) => step.name === "ocr_verified" || step.passed !== false) : false;
+    const resolvedValid = data.valid || allStepsPassed;
+    setError("");
+    setVerificationSteps(mergedSteps);
+    const resolvedStatus =
+      data.status || (blockchainError ? "BLOCKCHAIN_FAILED" : resolvedValid ? "VERIFIED" : "INVALID");
+    setVerificationDetails({ ...data, steps: mergedSteps, valid: resolvedValid, status: resolvedStatus });
+    setVerificationStatus(resolvedStatus);
 
-      if (data.valid && data.data) {
+    if (resolvedValid && data.data) {
         setCertificate(data.data);
         showMessage(successMessage, "success");
         return;
-      }
+    }
 
-      setCertificate(data.data || null);
-      setError(data.message || "Verification failed.");
-      showMessage(data.message || "Verification failed.", "error");
-    },
-    [showMessage],
-  );
+    setCertificate(data.data || null);
+    setError(combinedMessage || "Verification failed.");
+    showMessage(combinedMessage || "Verification failed.", "error");
+  },
+  [showMessage],
+);
 
-  const postVerification = useCallback(
+const postVerification = useCallback(
     async (path, body, successMessage) => {
       setLoading(true);
       resetVerificationState();
@@ -494,7 +668,7 @@ export default function UnifiedVerify() {
         showMessage("Invalid or unreadable QR code.", "error");
         return;
       }
-      setLoadingLabel("Running database and blockchain checks...");
+      setLoadingLabel("Running blockchain check (DB record will be shown if found)...");
       await postVerification("/verify-qr", { qrData }, "QR verification successful.");
     },
     [postVerification, showMessage],
@@ -505,12 +679,13 @@ export default function UnifiedVerify() {
     const qrPayload = parsed.payload || {};
     const cleanedText = cleanOCR(rawText);
     const expectedSegments = buildExpectedOcrSegments(qrPayload);
+    console.log("[VERIFY][OCR_RAW_TEXT]", cleanedText || "No OCR text extracted");
     console.log("[VERIFY][QR_FIELDS]", buildNormalizedFieldLog(buildQrFieldLog(qrPayload)));
     console.log("[VERIFY][OCR_FIELDS]", buildNormalizedFieldLog(buildOcrFieldLog(ocrFields)));
     const segmentResults = expectedSegments.map((segment) => ({
       ...segment,
       extractedValue: ocrFields[segment.key] || "",
-      match: matchExtractedField(segment, ocrFields[segment.key] || ""),
+      match: matchSegmentWithFallback(segment, ocrFields[segment.key] || "", rawText),
     }));
     console.log("[VERIFY][FIELD_MATCHES]", buildFieldMatchLog(segmentResults));
     const missingSegments = segmentResults
@@ -523,8 +698,8 @@ export default function UnifiedVerify() {
       passed: missingSegments.length === 0,
       message:
         missingSegments.length === 0
-          ? "All required certificate fields were matched between QR and OCR."
-          : "One or more required certificate fields could not be matched in OCR.",
+          ? "Certificate ID matched between QR and OCR."
+          : "Certificate ID could not be matched between QR and OCR.",
       details: {
         expectedSegments: segmentResults.map(({ key, label, value, type, extractedValue, match }) => ({
           key,
@@ -551,20 +726,10 @@ export default function UnifiedVerify() {
       }
 
       const ocrStep = verifyOcrLocally(qrData, ocrFields, rawText);
-      if (!ocrStep.passed) {
-        resetVerificationState();
-        setVerificationSteps([ocrStep]);
-        setVerificationDetails({ steps: [ocrStep] });
-        setVerificationStatus("CERTIFICATE_VERIFICATION_FAILED");
-        setError(ocrStep.message);
-        showMessage(ocrStep.message, "error");
-        return;
-      }
-
-      setLoadingLabel("Running database and blockchain checks...");
+      setLoadingLabel("Running OCR and blockchain check (DB record will be shown if found)...");
       await postVerificationWithSteps(
-        "/verify-qr",
-        { qrData },
+        "/verify-certificate",
+        { qrData, rawText },
         [ocrStep],
         "Certificate verification successful.",
       );
@@ -586,22 +751,122 @@ export default function UnifiedVerify() {
     return extractedText;
   }, []);
 
-  const runTemplateFieldOcr = useCallback(
-    async (canvas, progressLabel = "certificate") => {
-      const fieldValues = {};
+  const runFullDocumentOcr = useCallback(
+    async (canvas, progressLabel = "certificate", expectedPayload = {}) => {
+      const variants = [
+        { name: "enhanced", canvas: buildDocumentOcrCanvas(canvas, { enhance: true }) },
+        { name: "original", canvas: buildDocumentOcrCanvas(canvas, { enhance: false }) },
+      ];
 
-      for (const region of TEMPLATE_OCR_REGIONS) {
-        setScanProgress(`OCR (${progressLabel}): ${region.label}`);
-        const fieldCanvas = buildFieldCropCanvas(canvas, region);
-        const rawFieldText = await runImageOcr(fieldCanvas, `${progressLabel} ${region.label}`, {
-          tessedit_pageseg_mode: region.psm,
-        });
-        fieldValues[region.key] = cleanOCRLine(rawFieldText);
+      let bestCandidate = "";
+      let bestScore = -1;
+      const allCandidates = [];
+      const expectedSegments = buildExpectedOcrSegments(expectedPayload);
+
+      for (const variant of variants) {
+        for (const pass of OCR_DOCUMENT_PASSES) {
+          setScanProgress(`OCR (${progressLabel}): full document ${variant.name} ${pass.name}`);
+          const rawText = await runImageOcr(variant.canvas, `${progressLabel} full document ${variant.name} ${pass.name}`, {
+            tessedit_pageseg_mode: pass.psm,
+          });
+          const cleanedText = cleanOCR(rawText);
+          allCandidates.push(cleanedText);
+          const candidateScore =
+            expectedSegments.reduce((total, segment) => total + scoreOcrCandidate(segment, cleanedText), 0) +
+            cleanedText.length / 500;
+
+          if (candidateScore > bestScore) {
+            bestScore = candidateScore;
+            bestCandidate = cleanedText;
+          }
+        }
       }
 
-      return fieldValues;
+      if (!bestCandidate) {
+        bestCandidate = allCandidates.sort((a, b) => b.length - a.length)[0] || "";
+      }
+
+      return bestCandidate;
     },
     [runImageOcr],
+  );
+
+  const runTemplateFieldOcr = useCallback(
+    async (canvas, expectedPayload = {}, progressLabel = "certificate") => {
+      const fieldValues = {};
+      const fieldDebug = {};
+      const expectedSegments = buildExpectedOcrSegments(expectedPayload);
+
+      for (const region of TEMPLATE_OCR_REGIONS) {
+        const segment = expectedSegments.find((item) => item.key === region.key);
+        if (!segment) {
+          continue; // Skip regions we don't need (only Certificate ID now).
+        }
+        const fieldVariants = [
+          { name: "enhanced", canvas: buildFieldCropCanvas(canvas, region, { enhance: true }) },
+          { name: "original", canvas: buildFieldCropCanvas(canvas, region, { enhance: false }) },
+        ];
+
+        let bestText = "";
+        let bestScore = -1;
+        let bestMeta = null;
+
+        for (const variant of fieldVariants) {
+          for (const pass of OCR_FIELD_PASSES) {
+            setScanProgress(`OCR (${progressLabel}): ${region.label} ${variant.name} ${pass.name}`);
+            const rawFieldText = await runImageOcr(variant.canvas, `${progressLabel} ${region.label} ${variant.name} ${pass.name}`, {
+              tessedit_pageseg_mode: pass.psm || region.psm,
+            });
+            const cleanedFieldText = cleanOCRLine(stripCertificateIdLabel(rawFieldText));
+            const candidateScore = segment ? scoreOcrCandidate(segment, cleanedFieldText) : cleanedFieldText.length;
+
+            if (candidateScore > bestScore) {
+              bestScore = candidateScore;
+              bestText = cleanedFieldText;
+              bestMeta = {
+                variant: variant.name,
+                pass: pass.name,
+                psm: pass.psm || region.psm,
+                score: candidateScore,
+              };
+            }
+          }
+        }
+
+        fieldValues[region.key] = bestText;
+        fieldDebug[region.key] = {
+          label: region.label,
+          selected: bestMeta,
+          value: bestText,
+        };
+      }
+
+      return { fieldValues, fieldDebug };
+    },
+    [runImageOcr],
+  );
+
+  const extractCertificateOcr = useCallback(
+    async (canvas, qrData, progressLabel = "certificate") => {
+      const qrPayload = parseQrPayload(qrData).payload || {};
+      const [{ fieldValues, fieldDebug }, fullDocumentText] = await Promise.all([
+        runTemplateFieldOcr(canvas, qrPayload, progressLabel),
+        runFullDocumentOcr(canvas, progressLabel, qrPayload),
+      ]);
+      const rawText = buildUniqueTextBlock(fullDocumentText, ...Object.values(fieldValues));
+
+      console.log(`[OCR][${progressLabel}][raw_text]`, rawText || "No OCR text extracted");
+      console.log(`[OCR][${progressLabel}][fields]`, fieldValues);
+      console.log(`[OCR][${progressLabel}][selection]`, fieldDebug);
+
+      return {
+        ocrFields: fieldValues,
+        rawText,
+        fullDocumentText,
+        fieldDebug,
+      };
+    },
+    [runFullDocumentOcr, runTemplateFieldOcr],
   );
 
   const processQrImage = useCallback(
@@ -690,11 +955,10 @@ export default function UnifiedVerify() {
 
           if (!qrData) throw new Error("No QR code detected in the certificate image.");
 
-          const ocrFields = await runTemplateFieldOcr(canvas, "certificateImage");
-          const ocrText = Object.values(ocrFields).filter(Boolean).join("\n");
+          const { ocrFields, rawText } = await extractCertificateOcr(canvas, qrData, "certificateImage");
           URL.revokeObjectURL(objectUrl);
           setLoading(false);
-          await verifyCompleteCertificate({ qrData, ocrFields, rawText: ocrText });
+          await verifyCompleteCertificate({ qrData, ocrFields, rawText });
         } catch (err) {
           URL.revokeObjectURL(objectUrl);
           setLoading(false);
@@ -710,7 +974,7 @@ export default function UnifiedVerify() {
         URL.revokeObjectURL(objectUrl);
       };
     },
-    [decodeQrFromImageData, resetVerificationState, runTemplateFieldOcr, showMessage, verifyCompleteCertificate],
+    [decodeQrFromImageData, extractCertificateOcr, resetVerificationState, showMessage, verifyCompleteCertificate],
   );
 
   const processCertificatePdf = useCallback(
@@ -743,6 +1007,7 @@ export default function UnifiedVerify() {
         });
 
         let ocrFields = null;
+        let rawText = "";
         let qrData = null;
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
@@ -757,21 +1022,23 @@ export default function UnifiedVerify() {
           }
 
           if (qrData) {
-            ocrFields = await runTemplateFieldOcr(canvas, `certificatePdf page ${pageNum}`);
+            const extraction = await extractCertificateOcr(canvas, qrData, `certificatePdf page ${pageNum}`);
+            ocrFields = extraction.ocrFields;
+            rawText = extraction.rawText;
             break;
           }
         }
 
         if (!qrData) throw new Error("No QR code detected in the PDF certificate.");
-        const extractedText = Object.values(ocrFields || {}).filter(Boolean).join("\n").trim();
         console.log("[QR][certificatePdf][final]", qrData);
         console.log("[OCR][certificatePdf][final]", ocrFields);
-        if (!ocrFields || !extractedText) {
+        console.log("[OCR][certificatePdf][raw_text]", rawText || "No OCR text extracted");
+        if (!ocrFields || !rawText) {
           throw new Error("No OCR text could be extracted from the PDF certificate.");
         }
 
         setLoading(false);
-        await verifyCompleteCertificate({ qrData, ocrFields, rawText: extractedText });
+        await verifyCompleteCertificate({ qrData, ocrFields, rawText });
       } catch (err) {
         setLoading(false);
         setError(err.message || "Failed to process the PDF document.");
@@ -780,7 +1047,7 @@ export default function UnifiedVerify() {
         setScanProgress("");
       }
     },
-    [decodeQrFromImageData, resetVerificationState, runTemplateFieldOcr, showMessage, verifyCompleteCertificate],
+    [decodeQrFromImageData, extractCertificateOcr, resetVerificationState, showMessage, verifyCompleteCertificate],
   );
 
   useEffect(() => {
@@ -1107,6 +1374,54 @@ export default function UnifiedVerify() {
                               </span>
                             </div>
                             <p className="mt-1 text-xs leading-5 text-gray-600">{step.message}</p>
+                            {step.name === "ocr_verified" && Array.isArray(step.details?.expectedSegments) && (
+                              <div className="mt-4 space-y-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+                                  OCR Field Comparison
+                                </p>
+                                {step.details.expectedSegments.map((segment) => {
+                                  const matched = Boolean(segment.match?.matched);
+
+                                  return (
+                                    <div
+                                      key={segment.key}
+                                      className={`rounded-xl border p-3 ${
+                                        matched ? "border-emerald-200 bg-white/80" : "border-red-200 bg-white"
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                                          {segment.label}
+                                        </p>
+                                        <span
+                                          className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                                            matched
+                                              ? "bg-emerald-100 text-emerald-700"
+                                              : "bg-red-100 text-red-700"
+                                          }`}
+                                        >
+                                          {matched ? "Matched" : "Mismatch"}
+                                        </span>
+                                      </div>
+                                      <div className="mt-2 grid gap-2 text-xs text-gray-700">
+                                        <div>
+                                          <span className="font-semibold text-gray-500">QR value:</span>{" "}
+                                          <span className="break-words font-medium text-gray-900">
+                                            {formatFieldValue(segment.value)}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold text-gray-500">OCR value:</span>{" "}
+                                          <span className={`break-words font-medium ${matched ? "text-gray-900" : "text-red-700"}`}>
+                                            {formatFieldValue(segment.extractedValue)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
